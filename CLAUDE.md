@@ -1,7 +1,7 @@
 # STAIRSTACK
 
 Browser physics-stacking / climbing game. Plain Vite + React 19 SPA, JavaScript only (no TypeScript),
-Tailwind 3. No backend. Game design notes and history: `CONTEXT.md`.
+Tailwind 3. No backend. Game design notes and history: `CONTEXT.md`. Planned work: `ROADMAP.md`.
 
 ## Commands
 - `npm run dev` — dev server (http://localhost:5173; `.claude/launch.json` entry "stairstack")

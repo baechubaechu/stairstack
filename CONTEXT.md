@@ -24,11 +24,10 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
 ## Design history (why things are the way they are)
 - Problem: stacking on one side forms an easy staircase. Problem: you could clear without ever turning the
   view. Answers so far: endless lava (no fixed goal) + directional plates forcing face changes.
-- Earlier ideas still on the table: limited piece count; per-face checkpoints visited in order; walls that
-  are solid from one face but a ledge from another; ceilings passable from one face only.
+- Ideas not built yet (piece limits, per-face checkpoints, goal plates, …): see `ROADMAP.md`.
 
 ## Origins
 - Concept/prototype: ChatGPT share cx_6ad49dcab66881918b71ffcae73284c9 (React + R3F + Rapier prototype).
 - Built for a hackathon on Base44 (app id 6ad30f22d4155592064c7d5b). Copied here on 2026-10-18 and
   converted from Base44's TanStack Start + Cloudflare template to a plain Vite + React SPA (no backend).
-  The untouched Base44 files removed in that conversion are in `../stairstack-base44-backup/`.
+  The Base44 template files removed in that conversion were deleted; the app still exists on Base44.
