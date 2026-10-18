@@ -1,0 +1,71 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`engine > replays a scripted run identically 1`] = `
+{
+  "bodies": [
+    [
+      "slab",
+      -3.1,
+      0.148,
+      0.6,
+      null,
+    ],
+    [
+      "slab",
+      -0.503,
+      0.147,
+      -0.7,
+      null,
+    ],
+    [
+      "block",
+      1.886,
+      0.448,
+      0.404,
+      null,
+    ],
+    [
+      "plank",
+      0.951,
+      1.005,
+      0.912,
+      null,
+    ],
+    [
+      undefined,
+      -3.5,
+      0.128,
+      2.5,
+      "E",
+    ],
+    [
+      "slab",
+      1.453,
+      0.737,
+      -1.075,
+      null,
+    ],
+    [
+      undefined,
+      0.927,
+      1.268,
+      0.899,
+      "W",
+    ],
+    [
+      "block",
+      1.407,
+      1.189,
+      -1.479,
+      null,
+    ],
+  ],
+  "climber": [
+    -4.65,
+    0.45,
+  ],
+  "face": "front",
+  "lava": -0.611,
+  "score": 60,
+}
+`;

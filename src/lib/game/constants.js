@@ -1,0 +1,93 @@
+// STAIRSTACK — world constants and member catalogue.
+
+// Architectural model colours: bright, fully opaque, and read as materials —
+// ochre timber, terracotta, steel blue, sage and a plum finish.
+export const MEMBER_TYPES = [
+  { id: "slab", label: "Slab", w: 2.6, h: 0.3, d: 1.6, color: 0xe3a736, hex: "#e3a736" },
+  { id: "plank", label: "Plank", w: 3.4, h: 0.25, d: 0.8, color: 0xd2703a, hex: "#d2703a" },
+  { id: "block", label: "Block", w: 1.6, h: 0.9, d: 1.6, color: 0x4e8fbf, hex: "#4e8fbf" },
+  { id: "step", label: "Step", w: 2.0, h: 0.5, d: 1.2, color: 0x7fa85a, hex: "#7fa85a" },
+  { id: "beam", label: "Beam", w: 4.0, h: 0.35, d: 1.0, color: 0x8b6fa8, hex: "#8b6fa8" },
+];
+
+export const MEMBER_BY_ID = Object.fromEntries(MEMBER_TYPES.map((t) => [t.id, t]));
+
+// The drop order: NOW / NEXT read from this, indexed by how many members exist.
+export const SEQUENCE = ["slab", "plank", "block", "step", "beam", "slab", "block", "plank", "step", "slab"];
+
+export const GROUND_HALF = 6;
+
+// Placement on the plan: the member's centre stays this far inside the curbs, and each wheel
+// notch turns it this many degrees.
+export const AIM_LIMIT = 5.4;
+export const ROTATE_STEP_DEG = 15;
+
+// Endless survival: the run is scored by how long it lasts, and the floor is giving way.
+// The lava surfaces under the floor line, floods the ground first, then climbs the stack and
+// eats it from underneath. Touch it and the run is over.
+export const LAVA_START = -1;
+export const LAVA_SPEED = 0.06; // m/s it rises at the start of a run
+export const LAVA_ACCEL = 0.0014; // m/s² — and it keeps gaining
+export const SCORE_PER_SECOND = 10; // survival score: a point every tenth of a second
+
+// Members sink in faster the longer a run lasts — AUTO_FALL_SECONDS at the first second,
+// down to a quarter of that once the ramp bottoms out.
+export const FALL_RAMP = 0.05; // per second
+export const FALL_MAX = 4; // × faster at the cap, about a minute in
+
+// Members are released from the very top of the play area — the top of the elevation
+// window — so every drop reads as a full fall down onto the stack.
+export const DROP_Y = 8.6;
+
+// How long an unattended member takes to sink from the release height to the stack:
+// it descends on its own at a slow, steady rate, and a click drops it at once instead.
+export const AUTO_FALL_SECONDS = 3;
+
+// The elevation turns to the next face over this long — and turns straight back over the
+// same time when the climber's place on that face is already taken.
+export const TURN_SECONDS = 0.5;
+
+// The climber has to keep pushing into one end of the view for this long before the elevation
+// turns: a graze, a slide, or a body shoved into them must never turn the world on its own.
+export const EDGE_DWELL = 0.1;
+
+// The line the turn opens on — the furthest the climber can walk before the view changes face.
+// The elevation draws it, so the edge that turns the world is seen instead of guessed at.
+export const EDGE_LINE = GROUND_HALF - 0.15;
+
+// How long the "that face is already taken" feedback stays up after a turn folds back.
+export const BLOCKED_SECONDS = 1.2;
+
+export const CHARACTER = { w: 0.5, h: 0.9 };
+// Faster across the board: the climber moves and jumps quicker, and the world pulls
+// members down harder, so a drop lands with weight instead of drifting.
+export const CHAR_GRAVITY = -25;
+export const MOVE_SPEED = 6.3;
+export const JUMP_V = 11.2;
+export const MEMBER_GRAVITY = -18;
+export const SPAWN = { x: -5, y: 0.46 };
+
+export const PHYS_STEP = 1 / 60;
+export const CHAR_STEP = 1 / 120;
+
+// Four-face traversal. Every face reads the same rigid bodies from another side:
+// `axis` is the world horizontal the view measures, and `sign` says which way the
+// screen's +x runs (looking at the right face from +X, world +Z runs screen-left).
+// Walking off one end of a face turns the world to that neighbour — `right` / `left`
+// are the faces that end leads to — and enters it from the far side, so holding the
+// same direction walks the whole tower instead of spinning on the spot.
+//
+// The compass is the plan view's: north is −Z (up the plan), east is +X (to its right).
+// Each face is the side of the tower you look at from that compass point — the front
+// elevation from the SOUTH, the right from the EAST, the back from the NORTH and the
+// left from the WEST.
+export const COMPASS = { N: "NORTH", E: "EAST", S: "SOUTH", W: "WEST" };
+
+export const FACES = {
+  front: { label: "FRONT", compass: "S", axis: "x", sign: 1, right: "right", left: "left" },
+  right: { label: "RIGHT", compass: "E", axis: "z", sign: -1, right: "back", left: "front" },
+  back: { label: "BACK", compass: "N", axis: "x", sign: -1, right: "left", left: "right" },
+  left: { label: "LEFT", compass: "W", axis: "z", sign: 1, right: "front", left: "back" },
+};
+
+// Directional plates (GATE*) live in gates.js with the rest of that placeholder mechanic.

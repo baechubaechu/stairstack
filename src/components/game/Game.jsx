@@ -1,0 +1,213 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import GameBar from "@/components/game/GameBar";
+import NowNext from "@/components/game/NowNext";
+import ViewFrame from "@/components/game/ViewFrame";
+import PlanView from "@/components/game/PlanView";
+import ElevationView from "@/components/game/ElevationView";
+import FaceIndicator from "@/components/game/FaceIndicator";
+import { FrameContext } from "@/components/game/frame";
+import GameOverOverlay from "@/components/game/GameOverOverlay";
+import StartOverlay from "@/components/game/StartOverlay";
+import { LAVA_START, SPAWN } from "@/lib/game/constants";
+
+const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, time: 0, lava: LAVA_START, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "slab", nextId: "plank" };
+const snap = (s) =>
+  `${s.score}|${s.time.toFixed(1)}|${s.lava.toFixed(2)}|${s.members}|${s.top.toFixed(1)}|${s.x.toFixed(2)}|${s.yaw.toFixed(3)}|${s.cause}|${s.mode}|${s.paused}|${s.face}|${s.nowId}|${s.nextId}`;
+
+// Which action a key event means. Judged by the physical key code first, because a
+// non-Latin input method (e.g. the Korean IME) reports e.key as a composed character
+// or "Process" instead of the letter — the character would then never move.
+function actionOf(e) {
+  switch (e.code) {
+    case "KeyA":
+    case "ArrowLeft":
+      return "left";
+    case "KeyD":
+    case "ArrowRight":
+      return "right";
+    case "KeyW":
+    case "ArrowUp":
+    case "Space":
+      return "jump";
+    default:
+      break;
+  }
+  const k = (e.key || "").toLowerCase();
+  if (k === "a" || k === "arrowleft") return "left";
+  if (k === "d" || k === "arrowright") return "right";
+  if (k === "w" || k === " " || k === "arrowup") return "jump";
+  return null;
+}
+
+export default function Game() {
+  const engineRef = useRef(null);
+  const inputRef = useRef({ left: false, right: false, jump: false });
+  const framesRef = useRef(new Set());
+  const snapRef = useRef("");
+  const [engineState, setEngineState] = useState("loading");
+  const [stats, setStats] = useState(INITIAL);
+
+  const push = useCallback(() => {
+    const eng = engineRef.current;
+    if (!eng) return;
+    const s = eng.stats();
+    const key = snap(s);
+    if (key !== snapRef.current) {
+      snapRef.current = key;
+      setStats(s);
+    }
+  }, []);
+
+  // Boot the single Rapier world, then load the engine that owns it.
+  useEffect(() => {
+    let cancelled = false;
+    let engine = null;
+    (async () => {
+      try {
+        // The standard build ships its .wasm as a separate file the browser streams and compiles;
+        // the module is ready to use once imported (no init() step, unlike rapier3d-compat).
+        const RAPIER = await import("@dimforge/rapier3d");
+        const { createEngine } = await import("@/lib/game/engine");
+        if (cancelled) return;
+        engine = createEngine(RAPIER, inputRef.current);
+        engineRef.current = engine;
+        setEngineState("ready");
+        push();
+      } catch (err) {
+        if (!cancelled) setEngineState("failed");
+        console.error("STAIRSTACK engine failed to start", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      engineRef.current = null;
+      if (engine) engine.free();
+    };
+  }, [push]);
+
+  // Canvases join the loop through useFrame (see frame.js).
+  const subscribeFrame = useCallback((fn) => {
+    framesRef.current.add(fn);
+    return () => framesRef.current.delete(fn);
+  }, []);
+
+  // The one render loop: step the engine, then let every canvas draw that same state.
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    let acc = 0;
+    const loop = (now) => {
+      raf = requestAnimationFrame(loop);
+      const dt = Math.min((now - last) / 1000, 0.1);
+      last = now;
+      engineRef.current?.step(dt);
+      for (const draw of framesRef.current) draw(dt, now);
+      acc += dt;
+      if (acc > 0.1) {
+        acc = 0;
+        push();
+      }
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [push]);
+
+  useEffect(() => {
+    const down = (e) => {
+      if (e.code === "Space") e.preventDefault();
+      if (e.code === "Escape") {
+        e.preventDefault();
+        engineRef.current?.togglePause();
+        push();
+        return;
+      }
+      const action = actionOf(e);
+      if (action) inputRef.current[action] = true;
+    };
+    const up = (e) => {
+      const action = actionOf(e);
+      if (action) inputRef.current[action] = false;
+    };
+    const blur = () => {
+      inputRef.current.left = false;
+      inputRef.current.right = false;
+      inputRef.current.jump = false;
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+    };
+  }, [push]);
+
+  const startGame = useCallback(() => {
+    engineRef.current?.start();
+    push();
+  }, [push]);
+  const togglePause = useCallback(() => {
+    engineRef.current?.togglePause();
+    push();
+  }, [push]);
+  const restart = useCallback(() => {
+    engineRef.current?.restart();
+    push();
+  }, [push]);
+
+  return (
+    <FrameContext.Provider value={subscribeFrame}>
+      <div data-engine={engineState} className="flex min-h-[100dvh] w-full flex-col overflow-hidden bg-paper text-foreground lg:h-[100dvh]">
+        <GameBar
+          stats={stats}
+          engineState={engineState}
+          onTogglePause={togglePause}
+          onRestart={restart}
+        />
+  
+        <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[1.02fr_1fr] lg:overflow-hidden">
+          <ViewFrame
+            title="Top View"
+            hint="2D plan · aim with the mouse · click to drop"
+            badge={
+              <span className="hidden font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground sm:inline">
+                world X / Z
+              </span>
+            }
+          >
+            <PlanView engineRef={engineRef} onDrop={push} />
+            {engineState !== "ready" ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-card/80">
+                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                  {engineState === "failed" ? "Physics engine failed to start" : "Starting physics world…"}
+                </p>
+              </div>
+            ) : null}
+          </ViewFrame>
+  
+          <ViewFrame
+            title="Elevation"
+            hint={`${stats.faceLabel} face · lava ${stats.lava.toFixed(1)} m · depth collapsed`}
+          >
+            <ElevationView engineRef={engineRef} />
+            <div className="pointer-events-none absolute right-2 top-2 flex flex-col items-center rounded-md border border-border bg-card/90 px-1.5 pb-1 shadow-sm">
+              <FaceIndicator engineRef={engineRef} />
+              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-ochre">
+                {stats.faceLabel}
+              </span>
+              <span className="font-mono text-[7px] uppercase tracking-[0.14em] text-muted-foreground">
+                Viewed from {stats.faceSide}
+              </span>
+            </div>
+          </ViewFrame>
+        </main>
+  
+        <NowNext stats={stats} />
+  
+        {stats.mode === "menu" ? <StartOverlay engineState={engineState} onStart={startGame} /> : null}
+        {stats.over ? <GameOverOverlay stats={stats} onRetry={restart} /> : null}
+      </div>
+    </FrameContext.Provider>
+  );
+}
