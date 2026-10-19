@@ -19,6 +19,8 @@ Tailwind 3. No backend. Game design notes and history: `CONTEXT.md`. Planned wor
 - `climber.js` — the climber (not a Rapier body): movement, silhouette sweep, head strikes, edge walking.
 - `turn.js` — turning the elevation to the next face (and folding back when blocked).
 - `drop.js` — the member in play: queue, slow descent, release. `survival.js` — score / lava / speed-up.
+- `tipping.js` — how members settle: square to the grid, never sliding or twisting; on landing a member
+  whose centre of mass hangs off its support tips over that edge about one grid axis only.
 - `floors.js` — floor slabs (storeys): a slab over the whole plan but a gap strip along one edge,
   pencilled (no collider, translucent) until the climber stands on it, then solid ground; the next one
   appears a storey higher with its gap hidden from the face the climber is on.

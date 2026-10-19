@@ -7,6 +7,7 @@
 //   character, state, views    the climber, the run's state, and the derived projections
 import { BLOCKED_SECONDS, CHAR_STEP, COMPASS, FACES, LAVA_START, MEMBER_BY_ID, PHYS_STEP, QUEUE_AHEAD, SEQUENCE } from "./constants";
 import { charStep, createCharacter, headStrike, respawn } from "./climber";
+import { settle } from "./tipping";
 import { descend, release, spawnActive } from "./drop";
 import { seedFloor, stepFloors } from "./floors";
 import { advanceRun, buryDeep, petrify, reachHeight, resetRun } from "./survival";
@@ -53,10 +54,11 @@ export function createEngine(RAPIER, input) {
   const { state, character } = g;
 
   function seedStarter() {
-    addMember(g, MEMBER_BY_ID.slab, -3.1, 0.16, 0.6, { x: 0, y: 0, z: 0 });
-    addMember(g, MEMBER_BY_ID.slab, -0.5, 0.16, -0.7, { x: 0, y: 0.22, z: 0 });
-    addMember(g, MEMBER_BY_ID.block, 1.9, 0.46, 0.4, { x: 0, y: -0.15, z: 0 });
-    addMember(g, MEMBER_BY_ID.plank, 1.0, 1.15, 0.9, { x: 0, y: -0.5, z: 0.16 });
+    // on the grid like everything dropped later; the plank leans from the floor onto the block
+    addMember(g, MEMBER_BY_ID.slab, -3.25, 0.13, -2.25, { x: 0, y: 0, z: 0 });
+    addMember(g, MEMBER_BY_ID.slab, -0.75, 0.13, -0.75, { x: 0, y: 0, z: 0 });
+    addMember(g, MEMBER_BY_ID.block, 1.75, 0.5, 0.25, { x: 0, y: 0, z: 0 });
+    addMember(g, MEMBER_BY_ID.plank, -0.25, 0.62, 1.0, { x: 0, y: 0, z: 0.3 });
     seedFloor(g);
     refresh(g);
   }
@@ -136,6 +138,7 @@ export function createEngine(RAPIER, input) {
     let struck = false;
     while (state.physAcc >= PHYS_STEP && n < 5) {
       g.world.step();
+      settle(g); // members that just landed decide whether, and which way, they tip
       state.physAcc -= PHYS_STEP;
       n += 1;
       // Judged on the frame it happens, so the world can freeze with the fatal

@@ -13,16 +13,13 @@ export function spawnActive(g) {
 }
 
 // Turn the descending member into a rigid body where it is now. It keeps its height and
-// falls under gravity, so a click reads as an immediate drop.
+// falls under gravity, so a click reads as an immediate drop. It goes in square to the grid,
+// so it sits flush on whatever is under it.
 export function release(g) {
   const a = g.state.active;
   if (!a) return false;
   const p = placement(g);
-  addMember(g, a.type, p.x, p.y, p.z, {
-    x: (Math.random() - 0.5) * 0.03,
-    y: p.yaw,
-    z: (Math.random() - 0.5) * 0.03,
-  });
+  addMember(g, a.type, p.x, p.y, p.z, { x: 0, y: p.yaw, z: 0 });
   g.state.active = null;
   g.state.dropped += 1;
   spawnActive(g);

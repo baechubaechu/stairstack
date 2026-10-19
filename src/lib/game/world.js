@@ -1,6 +1,7 @@
 // The physics side of the game: the one Rapier world, its floor and curbs, and the members
 // dropped into it — plus the height questions every other module asks of the stack.
 import {
+  CELL,
   DROP_Y,
   FACES,
   GROUND_HALF,
@@ -11,6 +12,7 @@ import {
   VIEW_FOLLOW,
 } from "./constants";
 import { faceU, memberVertices } from "./elevation";
+import { holdSquare } from "./tipping";
 
 export function quatFromEuler(x, y, z) {
   const c1 = Math.cos(x / 2);
@@ -137,16 +139,38 @@ export function releaseY(g) {
   return DROP_Y + viewRise(g);
 }
 
-// Where the member in play is right now: it rides the mouse for X / Z, and its height is
-// wherever the slow descent has carried it — never below the top of the stack beneath it.
+// The member's footprint across the plan at a yaw that is a whole number of quarter turns: an
+// odd quarter turn swaps its width and depth over.
+function footprint(type, quarter) {
+  return quarter % 2 ? { fx: type.d, fz: type.w } : { fx: type.w, fz: type.d };
+}
+
+// Snap one plan coordinate to the grid. A side an odd number of cells long is centred on a
+// cell, an even one on a grid line, so either way its edges fall on grid lines — and it is held
+// back from the curb so the whole side stays on the plate.
+function snapAxis(v, size) {
+  const off = Math.round(size / CELL) % 2 ? CELL / 2 : 0;
+  const s = Math.round((v - off) / CELL) * CELL + off;
+  const lim = GROUND_HALF - size / 2;
+  return Math.max(-lim, Math.min(lim, s));
+}
+
+// Where the member in play is right now: it rides the mouse for X / Z, snapped to the grid, and
+// its height is wherever the slow descent has carried it — never below the top of the stack
+// beneath it. Its yaw is held to whole quarter turns.
 export function placement(g) {
   const { state, preview } = g;
   const type = state.active ? state.active.type : nextType(g);
+  const quarter = Math.round(preview.yaw / (Math.PI / 2));
+  const yaw = quarter * (Math.PI / 2);
+  const { fx, fz } = footprint(type, quarter);
+  const x = snapAxis(preview.x, fx);
+  const z = snapAxis(preview.z, fz);
   const top = releaseY(g);
   const bottom = state.active ? state.active.y - type.h / 2 : top - type.h / 2;
-  const landing = topUnder(g, preview.x, preview.z, type, bottom) + type.h / 2 + 0.08;
+  const landing = topUnder(g, x, z, type, bottom) + type.h / 2 + 0.08;
   const y = state.active ? Math.max(landing, state.active.y) : Math.max(top, landing + 0.5);
-  return { type, x: preview.x, z: preview.z, y, landing, yaw: preview.yaw };
+  return { type, x, z, y, landing, yaw };
 }
 
 export function addMember(g, type, x, y, z, euler) {
@@ -159,14 +183,19 @@ export function addMember(g, type, x, y, z, euler) {
       .setAngularDamping(0.5)
       .setCcdEnabled(true),
   );
-  world.createCollider(
+  // grippy: a member that tips is free to move only the way it tips, and even that way it
+  // pivots over the edge rather than sliding off it (see tipping.js)
+  const collider = world.createCollider(
     RAPIER.ColliderDesc.cuboid(type.w / 2, type.h / 2, type.d / 2)
-      .setFriction(0.95)
+      .setFriction(1.2)
+      .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Max)
       .setRestitution(0.02)
       .setDensity(1.4),
     body,
   );
-  const m = { type, body, hx: type.w / 2, hy: type.h / 2, hz: type.d / 2, color: type.color, hex: type.hex };
+  holdSquare(body);
+  const m = { type, body, collider, hx: type.w / 2, hy: type.h / 2, hz: type.d / 2, color: type.color, hex: type.hex };
+  m.tip = { landed: false, air: 0, axis: null };
   m.bottom = extent(g, m).bottom;
   g.members.push(m);
   return m;

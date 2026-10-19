@@ -4,7 +4,7 @@ import { paintMember } from "@/components/game/art/materials";
 import { drawPlanLava } from "@/components/game/art/scene";
 import useCanvasSize from "@/components/game/useCanvasSize";
 import { MONO, tracePoly } from "@/lib/game/canvas";
-import { AIM_LIMIT, FACES, FLOOR, GROUND_HALF, ROTATE_STEP_DEG } from "@/lib/game/constants";
+import { AIM_LIMIT, CELL, FACES, FLOOR, GROUND_HALF, ROTATE_STEP_DEG } from "@/lib/game/constants";
 import {
   ACCENT,
   ACCENT_SOFT,
@@ -107,16 +107,24 @@ export default function PlanView({ engineRef, onDrop }) {
     ctx.fillStyle = PLATE;
     ctx.fillRect(X(-GROUND_HALF), Y(-GROUND_HALF), GROUND_HALF * 2 * scale, GROUND_HALF * 2 * scale);
 
+    // the placing grid: every CELL a faint line members snap to, every metre a firmer one
     ctx.strokeStyle = GRID;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let g = -6; g <= 6; g++) {
-      ctx.moveTo(X(g), Y(-GROUND_HALF));
-      ctx.lineTo(X(g), Y(GROUND_HALF));
-      ctx.moveTo(X(-GROUND_HALF), Y(g));
-      ctx.lineTo(X(GROUND_HALF), Y(g));
+    const cells = Math.round((GROUND_HALF * 2) / CELL);
+    for (const metre of [false, true]) {
+      ctx.lineWidth = metre ? 1 : 0.5;
+      ctx.globalAlpha = metre ? 1 : 0.55;
+      ctx.beginPath();
+      for (let i = 0; i <= cells; i++) {
+        const g = -GROUND_HALF + i * CELL;
+        if (metre !== Number.isInteger(g)) continue;
+        ctx.moveTo(X(g), Y(-GROUND_HALF));
+        ctx.lineTo(X(g), Y(GROUND_HALF));
+        ctx.moveTo(X(-GROUND_HALF), Y(g));
+        ctx.lineTo(X(GROUND_HALF), Y(g));
+      }
+      ctx.stroke();
     }
-    ctx.stroke();
+    ctx.globalAlpha = 1;
 
     ctx.strokeStyle = INK_FAINT;
     ctx.lineWidth = 1.2;
