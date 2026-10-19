@@ -11,8 +11,10 @@ import GameOverOverlay from "@/components/game/GameOverOverlay";
 import StartOverlay from "@/components/game/StartOverlay";
 import { LAVA_START, SPAWN } from "@/lib/game/constants";
 import * as music from "@/lib/game/music";
+import { fetchLeaderboard, submitRun } from "@/lib/telemetry";
 
-const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, timeScore: 0, heightScore: 0, best: 0, time: 0, lava: LAVA_START, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "slab", nextIds: ["plank", "block", "step"] };
+const TIMELINE_EVERY = 5; // seconds between run-log samples
+const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, timeScore: 0, heightScore: 0, best: 0, time: 0, lava: LAVA_START, dropped: 0, turns: 0, floors: 0, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "slab", nextIds: ["plank", "block", "step"] };
 const snap = (s) =>
   `${s.score}|${s.time.toFixed(1)}|${s.lava.toFixed(2)}|${s.members}|${s.top.toFixed(1)}|${s.x.toFixed(2)}|${s.yaw.toFixed(3)}|${s.cause}|${s.mode}|${s.paused}|${s.face}|${s.nowId}|${s.nextIds.join(",")}`;
 
@@ -168,6 +170,26 @@ export default function Game() {
     music.setIntensity(stats.time);
   }, [stats.time]);
 
+  // Run log: height / lava sampled every few seconds while the run is live, sent once at game over.
+  const timelineRef = useRef([]);
+  const [board, setBoard] = useState(null);
+  useEffect(() => {
+    if (stats.mode !== "play") return;
+    const t = Math.floor(stats.time / TIMELINE_EVERY) * TIMELINE_EVERY;
+    const last = timelineRef.current[timelineRef.current.length - 1];
+    if (stats.time < 0.5) timelineRef.current = [];
+    else if (!last || last.t < t) timelineRef.current.push({ t, h: Number(stats.best.toFixed(2)), lava: Number(stats.lava.toFixed(2)) });
+  }, [stats.mode, stats.time, stats.best, stats.lava]);
+  useEffect(() => {
+    if (!stats.over) return;
+    setBoard(null);
+    const s = engineRef.current?.stats() ?? stats;
+    submitRun(s, timelineRef.current)
+      .then(() => fetchLeaderboard())
+      .then(setBoard);
+    // one submission per game over; `stats` changes every tick but `over` only flips once
+  }, [stats.over]);
+
   const toggleMute = useCallback(() => {
     music.setMuted(!muted);
     setMuted(!muted);
@@ -243,7 +265,7 @@ export default function Game() {
         <NowNext stats={stats} />
   
         {stats.mode === "menu" ? <StartOverlay engineState={engineState} onStart={startGame} /> : null}
-        {stats.over ? <GameOverOverlay stats={stats} onRetry={restart} /> : null}
+        {stats.over ? <GameOverOverlay stats={stats} board={board} onRetry={restart} /> : null}
       </div>
     </FrameContext.Provider>
   );

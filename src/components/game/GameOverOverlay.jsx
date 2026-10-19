@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { telemetryEnabled } from "@/lib/telemetry";
 
 function Row({ label, value, tone }) {
   return (
@@ -9,7 +10,7 @@ function Row({ label, value, tone }) {
   );
 }
 
-export default function GameOverOverlay({ stats, onRetry }) {
+export default function GameOverOverlay({ stats, board, onRetry }) {
   const lava = stats.cause === "lava";
   return (
     <div
@@ -41,6 +42,27 @@ export default function GameOverOverlay({ stats, onRetry }) {
           <Row label="Stack top" value={`${stats.top.toFixed(1)} m`} tone="text-amber-700" />
           <Row label="Lava height" value={`${stats.lava.toFixed(1)} m`} tone="text-rose-600" />
         </div>
+
+        {telemetryEnabled ? (
+          <div data-testid="leaderboard" className="mt-4">
+            <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-muted-foreground">Leaderboard</p>
+            {board === null ? (
+              <p className="py-2 font-mono text-[11px] text-muted-foreground">Loading…</p>
+            ) : board.length === 0 ? (
+              <p className="py-2 font-mono text-[11px] text-muted-foreground">No runs yet.</p>
+            ) : (
+              <ol className="mt-1">
+                {board.map((r, i) => (
+                  <li key={i} className="flex items-baseline gap-2 border-b border-border py-1 font-mono text-[11px] last:border-0">
+                    <span className="w-5 text-muted-foreground">{i + 1}</span>
+                    <span className="flex-1 truncate">{r.name}</span>
+                    <span className="text-amber-700">{r.score}</span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        ) : null}
 
         <Button className="mt-5 w-full" data-testid="btn-gameover-retry" onClick={onRetry}>
           Retry

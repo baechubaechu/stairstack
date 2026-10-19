@@ -51,3 +51,9 @@ randomness (embers, dust) is fine there; the engine itself must stay determinist
 - Tailwind `accent` is shadcn's near-white hover tint; for the game's ochre use `ochre` (or `ACCENT` on canvas).
 - Tuning numbers live in `constants.js` (e.g. `ROTATE_STEP_DEG`, `AIM_LIMIT`); UI text reads them from there.
 - Code comments explain the game rule behind the code, in full sentences — keep that style.
+
+## Supabase (run logs + leaderboard)
+`src/lib/telemetry.js` sends one `runs` row at game over and reads the `leaderboard` view; schema and RLS in
+`supabase/migrations/` (applied to production by the Supabase GitHub integration on merge to main; or paste into the SQL Editor). Keys come from `.env.local`
+(`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, see `.env.example`); with no keys it silently does nothing.
+Scores are client-reported, so the board is cheatable — fine for now.

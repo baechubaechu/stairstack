@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { getName, setName, telemetryEnabled } from "@/lib/telemetry";
 import ControlCard from "@/components/game/ControlCard";
 import MouseDiagram from "@/components/game/diagrams/MouseDiagram";
 import KeyboardDiagram from "@/components/game/diagrams/KeyboardDiagram";
@@ -21,6 +23,7 @@ const KEY_ITEMS = [
 
 export default function StartOverlay({ engineState, onStart }) {
   const ready = engineState === "ready";
+  const [name, setNameState] = useState(getName);
   return (
     <div
       data-testid="start-screen"
@@ -64,6 +67,20 @@ export default function StartOverlay({ engineState, onStart }) {
           whatever it swallows sets hard into basalt, ground you can keep building on. Touch the
           lava and the run is over. A member coming down on your head ends it too.
         </p>
+
+        {telemetryEnabled ? (
+          <input
+            data-testid="player-name"
+            value={name}
+            maxLength={16}
+            placeholder="Nickname for the leaderboard (optional)"
+            onChange={(e) => {
+              setNameState(e.target.value);
+              setName(e.target.value);
+            }}
+            className="mt-3.5 w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px]"
+          />
+        ) : null}
 
         <Button className="mt-3.5 w-full" data-testid="btn-start" disabled={!ready} onClick={onStart}>
           {ready ? "Game Start" : engineState === "failed" ? "Engine failed to start" : "Starting engine…"}

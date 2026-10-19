@@ -31,6 +31,7 @@ export function advanceTurn(g, dt) {
   }
   if (!tr.back) {
     state.face = tr.to;
+    state.turns += 1;
     character.x = tr.entry;
     state.blockedDir = 0;
     state.blockedFace = null;

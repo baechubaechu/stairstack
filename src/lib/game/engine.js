@@ -37,6 +37,7 @@ function createState() {
     blockedPulse: 0,
     dropped: 0, // members dropped this run — picks the next one from the drop order
     floors: 0, // floor slabs stood on this run
+    turns: 0, // face turns committed this run (refused ones don't count)
   };
 }
 
@@ -193,6 +194,8 @@ export function createEngine(RAPIER, input) {
       top: towerTop(g),
       members: g.members.filter((m) => !m.floor).length,
       floors: state.floors,
+      dropped: state.dropped,
+      turns: state.turns,
       yaw: g.preview.yaw,
       score: state.score,
       timeScore: state.timeScore,

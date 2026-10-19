@@ -21,6 +21,7 @@ import { viewRise } from "./world";
 export function resetRun(state) {
   state.elapsed = 0;
   state.dropped = 0;
+  state.turns = 0;
   state.best = 0;
   state.timeScore = 0;
   state.heightScore = 0;
