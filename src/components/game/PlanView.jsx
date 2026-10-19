@@ -1,29 +1,14 @@
 import { useEffect, useRef } from "react";
 import { useFrame } from "@/components/game/frame";
 import { paintMember } from "@/components/game/art/materials";
-import { drawPlanLava } from "@/components/game/art/scene";
+import { createCamera, easeYaw, yawFor } from "@/components/game/perspective";
 import useCanvasSize from "@/components/game/useCanvasSize";
-import { MONO, tracePoly } from "@/lib/game/canvas";
-import { AIM_LIMIT, CELL, FACES, FLOOR, GROUND_HALF, ROTATE_STEP_DEG } from "@/lib/game/constants";
-import {
-  ACCENT,
-  ACCENT_SOFT,
-  ACCENT_TINT,
-  CLIMBER_GUIDE,
-  FIGURE,
-  GRID,
-  INK_FAINT,
-  INK_SOFT,
-  PAPER,
-  PLATE,
-  SHADOW,
-  edgeOf,
-} from "@/lib/game/palette";
+import { MONO } from "@/lib/game/canvas";
+import { AIM_LIMIT, CELL, CHARACTER, FACES, GROUND_HALF, ROTATE_STEP_DEG, VIEW_FOLLOW } from "@/lib/game/constants";
+import { boxVertices, memberVertices } from "@/lib/game/elevation";
+import { quatFromEuler } from "@/lib/game/world";
+import { ACCENT, ACCENT_TINT, CLIMBER_GUIDE, FIGURE, GRID, INK_FAINT, PAPER, PLATE, SHADOW, edgeOf, scaleHex } from "@/lib/game/palette";
 
-// Visible plan window, in metres (world X across, world Z down).
-const SPAN = 13.4;
-// How far the strip of the face being read reaches into the plate.
-const FACE_STRIP = 0.45;
 const ROTATE_STEP = (ROTATE_STEP_DEG * Math.PI) / 180;
 const clampAim = (v) => Math.max(-AIM_LIMIT, Math.min(AIM_LIMIT, v));
 // A pencilled floor slab fills in as the climber nears it: no fill while its underside is
@@ -31,33 +16,128 @@ const clampAim = (v) => Math.max(-AIM_LIMIT, Math.min(AIM_LIMIT, v));
 const SLAB_FAR = 5;
 const SLAB_NEAR = 1;
 const SLAB_FILL = 0.6;
+// How fast the camera turns with the elevation and rises with the climber (per second).
+const TURN_RATE = 7;
+const RISE_RATE = 4;
 
-// TOP VIEW — a 2D plan of the same rigid bodies: X / Z footprints, depth Y collapsed. Each
-// footprint throws a shadow that reaches further the higher the member sits, so the plan
-// reads its own stacking order without a height label.
+// A box's six faces as corner indices into boxVertices() (index = 4·sx + 2·sy + sz, 0 for −, 1
+// for +), each with the local axis it faces along.
+const BOX_FACES = [
+  { idx: [0, 1, 3, 2], axis: 0, sign: -1 },
+  { idx: [4, 6, 7, 5], axis: 0, sign: 1 },
+  { idx: [0, 4, 5, 1], axis: 1, sign: -1 },
+  { idx: [2, 3, 7, 6], axis: 1, sign: 1 },
+  { idx: [0, 2, 6, 4], axis: 2, sign: -1 },
+  { idx: [1, 5, 7, 3], axis: 2, sign: 1 },
+];
+
+// A bold arrow with a filled head, from (x0, y0) to (x1, y1) in canvas pixels.
+function drawArrow(ctx, x0, y0, x1, y1, ink) {
+  const a = Math.atan2(y1 - y0, x1 - x0);
+  ctx.save();
+  ctx.strokeStyle = ink;
+  ctx.fillStyle = ink;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1 - Math.cos(a) * 6, y1 - Math.sin(a) * 6);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x1 - Math.cos(a - 0.45) * 11, y1 - Math.sin(a - 0.45) * 11);
+  ctx.lineTo(x1 - Math.cos(a + 0.45) * 11, y1 - Math.sin(a + 0.45) * 11);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+const id = (v) => v;
+
+// A screen-space polygon traced through the camera.
+function tracePts(ctx, pts) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+}
+
+// A horizontal rectangle [x0, z0] – [x1, z1] at height y, projected.
+function flatRect(cam, x0, z0, x1, z1, y) {
+  return [cam.project(x0, y, z0), cam.project(x1, y, z0), cam.project(x1, y, z1), cam.project(x0, y, z1)];
+}
+
+// Draw one box (its eight corners in world space) as the camera sees it: the faces turned toward
+// the eye, far ones first, the top in the member's material and the sides shaded down from it.
+function drawBox(ctx, cam, verts, { type, hex, alpha = 1, dash = null }) {
+  const eye = cam.eye();
+  const pts = verts.map((v) => cam.project(v[0], v[1], v[2]));
+  const centre = verts.reduce((s, v) => [s[0] + v[0] / 8, s[1] + v[1] / 8, s[2] + v[2] / 8], [0, 0, 0]);
+  const faces = [];
+  for (const f of BOX_FACES) {
+    const c = f.idx.reduce((s, i) => [s[0] + verts[i][0] / 4, s[1] + verts[i][1] / 4, s[2] + verts[i][2] / 4], [0, 0, 0]);
+    const n = [c[0] - centre[0], c[1] - centre[1], c[2] - centre[2]];
+    const toEye = [eye.x - c[0], eye.y - c[1], eye.z - c[2]];
+    if (n[0] * toEye[0] + n[1] * toEye[1] + n[2] * toEye[2] <= 0) continue;
+    const len = Math.hypot(n[0], n[1], n[2]) || 1;
+    faces.push({ f, up: n[1] / len, depth: f.idx.reduce((s, i) => s + pts[i].depth, 0) / 4 });
+  }
+  faces.sort((a, b) => b.depth - a.depth);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  for (const { f, up } of faces) {
+    const poly = f.idx.map((i) => [pts[i].x, pts[i].y]);
+    if (up > 0.7) {
+      // the top: its material, grain running along the member's own x
+      const e = [pts[f.idx[1]].x - pts[f.idx[0]].x, pts[f.idx[1]].y - pts[f.idx[0]].y];
+      const ppm = pts[f.idx[0]].ppm;
+      paintMember(ctx, poly, id, id, { type, hex, screenAngle: Math.atan2(e[1], e[0]), scale: ppm, outline: edgeOf(hex), dash });
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(poly[0][0], poly[0][1]);
+      for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]);
+      ctx.closePath();
+      ctx.fillStyle = scaleHex(hex, up < -0.7 ? 0.5 : 0.72);
+      ctx.fill();
+      if (dash) ctx.setLineDash(dash);
+      ctx.strokeStyle = edgeOf(hex);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+  ctx.restore();
+}
+
+// TOP VIEW — the same rigid bodies seen in perspective from above, from the side the elevation
+// is read from: the plan's near edge is the elevation's plane and its left-right is the
+// elevation's, and the camera turns with the elevation and rises with the climber. The mouse
+// aims on the horizontal plane the member in play will land at.
 export default function PlanView({ engineRef, onDrop }) {
   const canvasRef = useRef(null);
   const viewRef = useCanvasSize(canvasRef);
   const onDropRef = useRef(onDrop);
   onDropRef.current = onDrop;
+  // the camera the last frame was drawn with, and where it is easing to
+  const camRef = useRef(null);
+  const yawRef = useRef(null);
+  const riseRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
 
-    // Mouse position over the plan sets the member's X / Z placement.
+    // The mouse sets the member's X / Z: the point under it on the plane the member will land
+    // at (its bottom where it lands now), so the footprint sits under the cursor.
     const aim = (e) => {
-      const v = viewRef.current;
       const eng = engineRef.current;
-      if (!v || !eng) return;
+      const cam = camRef.current;
+      if (!eng || !cam) return;
       const rect = canvas.getBoundingClientRect();
-      const scale = Math.min(v.w / SPAN, v.h / SPAN);
-      const ox = (v.w - SPAN * scale) / 2;
-      const oy = (v.h - SPAN * scale) / 2;
-      const x = (e.clientX - rect.left - ox) / scale - SPAN / 2;
-      const z = (e.clientY - rect.top - oy) / scale - SPAN / 2;
-      eng.preview.x = clampAim(x);
-      eng.preview.z = clampAim(z);
+      const p = eng.placement();
+      const at = cam.unproject(e.clientX - rect.left, e.clientY - rect.top, p.landing - p.type.h / 2);
+      eng.preview.x = clampAim(at.x);
+      eng.preview.z = clampAim(at.z);
     };
 
     const onMove = (e) => aim(e);
@@ -84,7 +164,7 @@ export default function PlanView({ engineRef, onDrop }) {
     };
   }, [engineRef, viewRef]);
 
-  useFrame((_dt, now) => {
+  useFrame((dt, now) => {
     const canvas = canvasRef.current;
     const v = viewRef.current;
     if (!canvas || !v) return;
@@ -97,256 +177,227 @@ export default function PlanView({ engineRef, onDrop }) {
     ctx.fillStyle = PAPER;
     ctx.fillRect(0, 0, w, h);
 
-    const scale = Math.min(w / SPAN, h / SPAN);
-    const ox = (w - SPAN * scale) / 2;
-    const oy = (h - SPAN * scale) / 2;
-    const X = (x) => ox + (x + SPAN / 2) * scale;
-    const Y = (z) => oy + (z + SPAN / 2) * scale;
+    const eng = engineRef.current;
+    const c = eng?.character;
+    const feet = c ? c.y - c.hh : 0;
 
-    // the drawing board
+    // the camera: turned to the face being read, risen with the climber like the elevation
+    const goalYaw = eng ? yawFor(eng) : 0;
+    yawRef.current = yawRef.current == null ? goalYaw : easeYaw(yawRef.current, goalYaw, Math.min(1, dt * TURN_RATE));
+    const goalRise = Math.max(0, feet - VIEW_FOLLOW);
+    riseRef.current += (goalRise - riseRef.current) * Math.min(1, dt * RISE_RATE);
+    const rise = riseRef.current;
+    const cam = createCamera(yawRef.current, rise, w, h, GROUND_HALF);
+    camRef.current = cam;
+    const H = GROUND_HALF;
+
+    // the ground plate, and the work plane at the camera's height with the placing grid on it
     ctx.fillStyle = PLATE;
-    ctx.fillRect(X(-GROUND_HALF), Y(-GROUND_HALF), GROUND_HALF * 2 * scale, GROUND_HALF * 2 * scale);
-
-    // the placing grid: every CELL a faint line members snap to, every metre a firmer one
+    tracePts(ctx, flatRect(cam, -H, -H, H, H, 0));
+    ctx.fill();
+    ctx.strokeStyle = INK_FAINT;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    if (rise > 0.05) {
+      ctx.fillStyle = "rgba(255,255,255,0.55)";
+      tracePts(ctx, flatRect(cam, -H, -H, H, H, rise));
+      ctx.fill();
+    }
+    const cells = Math.round((H * 2) / CELL);
     ctx.strokeStyle = GRID;
-    const cells = Math.round((GROUND_HALF * 2) / CELL);
     for (const metre of [false, true]) {
       ctx.lineWidth = metre ? 1 : 0.5;
       ctx.globalAlpha = metre ? 1 : 0.55;
       ctx.beginPath();
       for (let i = 0; i <= cells; i++) {
-        const g = -GROUND_HALF + i * CELL;
+        const g = -H + i * CELL;
         if (metre !== Number.isInteger(g)) continue;
-        ctx.moveTo(X(g), Y(-GROUND_HALF));
-        ctx.lineTo(X(g), Y(GROUND_HALF));
-        ctx.moveTo(X(-GROUND_HALF), Y(g));
-        ctx.lineTo(X(GROUND_HALF), Y(g));
+        for (const [a, b] of [
+          [cam.project(g, rise, -H), cam.project(g, rise, H)],
+          [cam.project(-H, rise, g), cam.project(H, rise, g)],
+        ]) {
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+        }
       }
       ctx.stroke();
     }
     ctx.globalAlpha = 1;
 
-    ctx.strokeStyle = INK_FAINT;
-    ctx.lineWidth = 1.2;
-    ctx.strokeRect(X(-GROUND_HALF), Y(-GROUND_HALF), GROUND_HALF * 2 * scale, GROUND_HALF * 2 * scale);
-
-    // tick labels
-    ctx.font = `10px ${MONO}`;
-    ctx.fillStyle = INK_SOFT;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    for (let g = -6; g <= 6; g += 2) ctx.fillText(`${g}`, X(g), Y(GROUND_HALF) + 4);
-    ctx.textAlign = "right";
-    ctx.textBaseline = "middle";
-    for (let g = -6; g <= 6; g += 2) ctx.fillText(`${g}`, X(-GROUND_HALF) - 5, Y(g));
-
-    // Which elevation is being read — its plane inked along the very edge of the plate it
-    // looks from, so the grid itself stays clear. The arrow outside it
-    // shows which way that view's screen-x runs.
-    const f = FACES[engineRef.current?.face ?? "front"];
-    const band = 12 / scale; // how far outside the plate the band sits
-    const reach = GROUND_HALF + 0.4; // it runs a little past both plate corners
-    ctx.strokeStyle = ACCENT_SOFT;
-    ctx.fillStyle = ACCENT_SOFT;
-    ctx.lineWidth = 1;
-    ctx.font = `9px ${MONO}`;
-
-    if (f.axis === "x") {
-      // a band above / below the plate; screen-x runs along +X or −X
-      const z = f.sign > 0 ? GROUND_HALF + band : -GROUND_HALF - band;
-      const a = X(-f.sign * reach);
-      const b = X(f.sign * reach);
-      const tip = f.sign > 0 ? b : a;
-      const dir = f.sign > 0 ? 1 : -1;
-      ctx.beginPath();
-      ctx.moveTo(a, Y(z));
-      ctx.lineTo(b, Y(z));
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(tip, Y(z));
-      ctx.lineTo(tip - dir * 7, Y(z) - 4);
-      ctx.lineTo(tip - dir * 7, Y(z) + 4);
-      ctx.closePath();
-      ctx.fill();
-    } else {
-      // a band beside the plate; screen-x runs along +Z or −Z
-      const x = f.sign > 0 ? GROUND_HALF + band : -GROUND_HALF - band;
-      const a = Y(-f.sign * reach);
-      const b = Y(f.sign * reach);
-      const tip = f.sign > 0 ? b : a;
-      const dir = f.sign > 0 ? 1 : -1;
-      ctx.beginPath();
-      ctx.moveTo(X(x), a);
-      ctx.lineTo(X(x), b);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(X(x), tip);
-      ctx.lineTo(X(x) - 4, tip - dir * 7);
-      ctx.lineTo(X(x) + 4, tip - dir * 7);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    // The face being read, shown as the surface it is: a tinted strip along the plate edge
-    // the elevation looks in from, with that edge itself inked in. That edge is ±Z for the
-    // front and back faces, and ±X for the two sides.
-    const side = f.axis === "x" ? f.sign : -f.sign;
-    ctx.fillStyle = ACCENT_TINT;
+    // the face being read is the plate's near edge: inked in along the work plane
+    const face = FACES[eng?.face ?? "front"];
+    const near = (() => {
+      const t = [Math.sin(cam.yaw), Math.cos(cam.yaw)]; // toward the viewer, in x / z
+      const ux = Math.cos(cam.yaw);
+      const uz = -Math.sin(cam.yaw);
+      const mid = [t[0] * H, t[1] * H];
+      return [cam.project(mid[0] - ux * H, rise, mid[1] - uz * H), cam.project(mid[0] + ux * H, rise, mid[1] + uz * H)];
+    })();
     ctx.strokeStyle = ACCENT;
-    ctx.lineWidth = 2;
-    if (f.axis === "x") {
-      const z0 = side * GROUND_HALF;
-      const zi = z0 - side * FACE_STRIP;
-      ctx.fillRect(X(-GROUND_HALF), Math.min(Y(z0), Y(zi)), GROUND_HALF * 2 * scale, Math.abs(Y(zi) - Y(z0)));
-      ctx.beginPath();
-      ctx.moveTo(X(-GROUND_HALF), Y(z0));
-      ctx.lineTo(X(GROUND_HALF), Y(z0));
-      ctx.stroke();
-    } else {
-      const x0 = side * GROUND_HALF;
-      const xi = x0 - side * FACE_STRIP;
-      ctx.fillRect(Math.min(X(x0), X(xi)), Y(-GROUND_HALF), Math.abs(X(xi) - X(x0)), GROUND_HALF * 2 * scale);
-      ctx.beginPath();
-      ctx.moveTo(X(x0), Y(-GROUND_HALF));
-      ctx.lineTo(X(x0), Y(GROUND_HALF));
-      ctx.stroke();
-    }
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(near[0].x, near[0].y);
+    ctx.lineTo(near[1].x, near[1].y);
+    ctx.stroke();
 
-    // The compass every view is named by: north is up the plan, east to its right. The side
-    // the elevation is being read from is the one picked out.
-    const reading = FACES[engineRef.current?.face ?? "front"].compass;
-    const inset = GROUND_HALF - 0.26;
-    ctx.font = `bold 10px ${MONO}`;
+    // the compass on the work plane, the side being read picked out
+    ctx.font = `bold 11px ${MONO}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    for (const [c, px, py] of [
+    const inset = H - 0.35;
+    for (const [label, px, pz] of [
       ["N", 0, -inset],
       ["S", 0, inset],
       ["W", -inset, 0],
       ["E", inset, 0],
     ]) {
-      ctx.fillStyle = c === reading ? ACCENT : INK_FAINT;
-      ctx.fillText(c, X(px), Y(py));
+      const p = cam.project(px, rise, pz);
+      ctx.fillStyle = label === face.compass ? ACCENT : INK_FAINT;
+      ctx.fillText(label, p.x, p.y);
     }
 
-    const eng = engineRef.current;
     if (!eng) return;
 
-    // footprints, lowest first, so a higher member sits over the ones beneath it
-    const sorted = [...eng.plans].sort((a, b) => a.top - b.top);
-    const stack = sorted.filter((p) => !p.stone);
-    const k = scale / 52;
-
-    // basalt is under the lava, so it goes down first and the lava washes over it
-    for (const plan of sorted) {
-      if (!plan.stone) continue;
-      paintMember(ctx, plan.poly, X, Y, { type: "basalt", hex: plan.hex, scale, outline: edgeOf(plan.hex) });
-    }
-
-    // once the lava is over the floor, the whole plate is under it — the stack stands in it
-    drawPlanLava(ctx, X, Y, GROUND_HALF, eng.lava, now / 1000);
-
-    // shadows — the higher the member, the further its shadow reaches (a floor slab spans the
-    // whole plan, so it throws none)
-    for (const plan of stack) {
-      if (plan.poly.length < 3 || plan.floor) continue;
-      const off = 2.5 + 3.6 * plan.top;
-      ctx.save();
-      ctx.translate(off * k, (off + 1.6) * k);
-      tracePoly(ctx, plan.poly, X, Y);
-      ctx.fillStyle = `rgba(${SHADOW},${Math.min(0.3, 0.1 + 0.04 * plan.top).toFixed(3)})`;
+    // Contact shadows on the ground: each member's footprint, darker the closer it sits to it.
+    for (const m of eng.members) {
+      if (m.floor) continue;
+      const vs = memberVertices(m);
+      const ys = vs.map((p) => p[1]);
+      const lo = Math.min(...ys);
+      const bottom = vs.filter((p) => p[1] < lo + 0.2).map((p) => cam.project(p[0], 0, p[2]));
+      if (bottom.length < 3) continue;
+      const hull = bottom;
+      ctx.fillStyle = `rgba(${SHADOW},${Math.max(0.04, 0.2 - 0.03 * lo).toFixed(3)})`;
+      ctx.beginPath();
+      // the bottom corners of a box are at most four: sorting them round their centre traces it
+      const cx = hull.reduce((s, p) => s + p.x, 0) / hull.length;
+      const cy = hull.reduce((s, p) => s + p.y, 0) / hull.length;
+      hull.sort((a, b) => Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx));
+      ctx.moveTo(hull[0].x, hull[0].y);
+      for (const p of hull) ctx.lineTo(p.x, p.y);
+      ctx.closePath();
       ctx.fill();
-      ctx.restore();
     }
 
-    // solid footprints in their materials. A floor slab nobody has stood on yet is only
-    // pencilled in: from far below it is just its dashed outline, so the plate under it still
-    // reads as open ground to build on, and it fills in as the climber nears its underside.
-    const feet = eng.character.y - eng.character.hh;
-    for (const plan of stack) {
-      if (plan.poly.length < 3) continue;
-      const pencilled = plan.floor && !plan.floor.active;
-      if (pencilled) {
-        const below = plan.top - FLOOR.h - feet;
-        const near = 1 - Math.min(1, Math.max(0, (below - SLAB_NEAR) / (SLAB_FAR - SLAB_NEAR)));
-        if (near > 0) {
-          ctx.save();
-          ctx.globalAlpha = SLAB_FILL * near;
-          paintMember(ctx, plan.poly, X, Y, { type: plan.type, hex: plan.hex, scale, outline: edgeOf(plan.hex) });
-          ctx.restore();
-        }
+    // every member as a box, far ones first; what the lava has closed over goes under its surface
+    const lava = eng.lava;
+    const boxes = eng.members.map((m) => {
+      const verts = memberVertices(m);
+      const ctr = verts.reduce((s, p) => [s[0] + p[0] / 8, s[1] + p[1] / 8, s[2] + p[2] / 8], [0, 0, 0]);
+      const top = Math.max(...verts.map((p) => p[1]));
+      return { m, verts, top, depth: cam.project(ctr[0], ctr[1], ctr[2]).depth };
+    });
+    boxes.sort((a, b) => b.depth - a.depth || a.top - b.top);
+
+    const drawOne = ({ m, verts }) => {
+      if (m.stone) return drawBox(ctx, cam, verts, { type: "basalt", hex: m.hex });
+      if (m.floor && !m.floor.active) {
+        // pencilled: out of sight until the climber nears it, then fading in, outline first —
+        // seen from above, a storey far overhead would only fill the view
+        const below = verts[0][1] - feet;
+        const k = 1 - Math.min(1, Math.max(0, (below - SLAB_NEAR) / (SLAB_FAR - SLAB_NEAR)));
+        if (k <= 0) return undefined;
+        const topFace = [2, 3, 7, 6].map((i) => cam.project(verts[i][0], verts[i][1], verts[i][2]));
         ctx.save();
+        ctx.globalAlpha = SLAB_FILL * k * k;
+        tracePts(ctx, topFace);
+        ctx.fillStyle = m.hex;
+        ctx.fill();
         ctx.setLineDash([6, 4]);
-        ctx.globalAlpha = 0.55;
-        tracePoly(ctx, plan.poly, X, Y);
-        ctx.strokeStyle = edgeOf(plan.hex);
+        ctx.globalAlpha = 0.6 * k;
+        ctx.strokeStyle = edgeOf(m.hex);
         ctx.lineWidth = 1;
         ctx.stroke();
         ctx.restore();
-        continue;
+        return undefined;
       }
-      paintMember(ctx, plan.poly, X, Y, {
-        type: plan.type,
-        hex: plan.hex,
-        screenAngle: plan.angle,
-        scale,
-        outline: edgeOf(plan.hex),
-      });
+      return drawBox(ctx, cam, verts, { type: m.type.id, hex: m.hex });
+    };
+    for (const b of boxes) if (b.top <= lava) drawOne(b);
+    if (lava > -0.25) {
+      const k = Math.min(1, (lava + 0.25) / 0.25);
+      ctx.save();
+      ctx.globalAlpha = 0.82 * k;
+      const pts = flatRect(cam, -H, -H, H, H, Math.max(0, lava));
+      const g = ctx.createLinearGradient(0, Math.min(...pts.map((p) => p.y)), 0, Math.max(...pts.map((p) => p.y)));
+      const flicker = 0.04 * Math.sin(now / 700);
+      g.addColorStop(0, "#ffc061");
+      g.addColorStop(0.55 + flicker, "#fb8f44");
+      g.addColorStop(1, "#e2652f");
+      tracePts(ctx, pts);
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.restore();
     }
+    for (const b of boxes) if (b.top > lava) drawOne(b);
 
-    // the climber's column on the view being read — a wall that crosses the whole plate,
-    // so the marker runs the full way across whichever axis that view measures
-    const cw = eng.charWorld();
+    // the climber, on the near face: a dashed line across the plate where their column is, and
+    // their figure standing at its near end
     const cf = FACES[eng.face];
+    const cw = eng.charWorld();
+    const along = cf.axis === "x" ? [0, 1] : [1, 0];
+    const base = [cw.cx, cw.cz];
+    const a0 = cam.project(base[0] - along[0] * H, feet, base[1] - along[1] * H);
+    const a1 = cam.project(base[0] + along[0] * H, feet, base[1] + along[1] * H);
     ctx.save();
     ctx.setLineDash([3, 5]);
     ctx.strokeStyle = CLIMBER_GUIDE;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    if (cf.axis === "x") {
-      ctx.moveTo(X(cw.cx), Y(-GROUND_HALF));
-      ctx.lineTo(X(cw.cx), Y(GROUND_HALF));
-    } else {
-      ctx.moveTo(X(-GROUND_HALF), Y(cw.cz));
-      ctx.lineTo(X(GROUND_HALF), Y(cw.cz));
-    }
+    ctx.moveTo(a0.x, a0.y);
+    ctx.lineTo(a1.x, a1.y);
     ctx.stroke();
     ctx.restore();
+    const nearEnd = a0.depth < a1.depth ? [base[0] - along[0] * H, base[1] - along[1] * H] : [base[0] + along[0] * H, base[1] + along[1] * H];
+    const fb = cam.project(nearEnd[0], feet, nearEnd[1]);
+    const fh = cam.project(nearEnd[0], feet + CHARACTER.h, nearEnd[1]);
     ctx.fillStyle = FIGURE;
-    if (cf.axis === "x") {
-      ctx.fillRect(X(cw.cx) - 4, Y(-GROUND_HALF) - 3, 8, 3);
-      ctx.fillRect(X(cw.cx) - 4, Y(GROUND_HALF), 8, 3);
-    } else {
-      ctx.fillRect(X(-GROUND_HALF) - 3, Y(cw.cz) - 4, 3, 8);
-      ctx.fillRect(X(GROUND_HALF), Y(cw.cz) - 4, 3, 8);
-    }
+    ctx.fillRect(fb.x - 3, fh.y, 6, fb.y - fh.y);
 
-    // the member in play — its footprint, where the mouse has it
+    // the member in play: its box where it hangs now, its footprint where it will land with a
+    // line down to it, and which way it will tip there
     if (eng.mode === "play") {
       const pl = eng.placement();
+      const q = quatFromEuler(0, pl.yaw, 0);
+      const hx = pl.type.w / 2;
+      const hy = pl.type.h / 2;
+      const hz = pl.type.d / 2;
+      const bottom = pl.landing - hy;
+      const land = boxVertices(hx, 0, hz, { x: pl.x, y: bottom, z: pl.z }, q);
+      const foot = [0, 1, 5, 4].map((i) => cam.project(land[i][0], land[i][1], land[i][2]));
       ctx.save();
-      ctx.translate(X(pl.x), Y(pl.z));
-      ctx.rotate(-pl.yaw);
-      const hw = (pl.type.w / 2) * scale;
-      const hd = (pl.type.d / 2) * scale;
-      ctx.beginPath();
-      ctx.rect(-hw, -hd, hw * 2, hd * 2);
+      tracePts(ctx, foot);
       ctx.fillStyle = ACCENT_TINT;
       ctx.fill();
       ctx.setLineDash([6, 5]);
       ctx.strokeStyle = ACCENT;
       ctx.lineWidth = 1.3;
       ctx.stroke();
-      ctx.restore();
-
-      ctx.strokeStyle = ACCENT;
-      ctx.lineWidth = 1;
+      const from = cam.project(pl.x, pl.y - hy, pl.z);
+      const to = cam.project(pl.x, bottom, pl.z);
+      ctx.setLineDash([2, 4]);
       ctx.beginPath();
-      ctx.moveTo(X(pl.x) - 5, Y(pl.z));
-      ctx.lineTo(X(pl.x) + 5, Y(pl.z));
-      ctx.moveTo(X(pl.x), Y(pl.z) - 5);
-      ctx.lineTo(X(pl.x), Y(pl.z) + 5);
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
       ctx.stroke();
+      ctx.restore();
+      drawBox(ctx, cam, boxVertices(hx, hy, hz, { x: pl.x, y: pl.y, z: pl.z }, q), {
+        type: pl.type.id,
+        hex: pl.type.hex,
+        alpha: 0.85,
+        dash: [6, 4],
+      });
+
+      const tip = eng.tipForecast();
+      if (tip) {
+        const quarter = Math.round(pl.yaw / (Math.PI / 2));
+        const half = (tip.axis === "x") === !(quarter % 2) ? pl.type.w / 2 : pl.type.d / 2;
+        const len = Math.max(0.5, half - 0.15);
+        const [dx, dz] = tip.axis === "x" ? [tip.sign, 0] : [0, tip.sign];
+        const s = cam.project(pl.x, bottom, pl.z);
+        const e = cam.project(pl.x + dx * len, bottom, pl.z + dz * len);
+        drawArrow(ctx, s.x, s.y, e.x, e.y, ACCENT);
+      }
     }
   });
 

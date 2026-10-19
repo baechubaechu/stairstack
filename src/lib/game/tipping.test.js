@@ -116,4 +116,22 @@ describe("members on the grid", () => {
     // a pivot or two over edges moves it a little, never a slide away
     expect(Math.abs(block.body.translation().x - 1.5)).toBeLessThan(0.75);
   });
+
+  it("forecasts the tip before the drop, and the drop then tips that way", () => {
+    addMember(g, MEMBER_BY_ID.block, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
+    settleFor(1);
+    // the member in play is a slab, 2.5 × 1.5: over the block it lands level...
+    engine.preview.x = -1.25;
+    engine.preview.z = 0.25;
+    engine.preview.yaw = 0;
+    expect(engine.tipForecast()).toBeNull();
+    // ...a metre and a half further on it hangs off the block's +x edge
+    engine.preview.x = 0.25;
+    expect(engine.tipForecast()).toEqual({ axis: "x", sign: 1 });
+    engine.drop();
+    const slab = engine.members[engine.members.length - 1];
+    settleFor(2);
+    expect(slab.tip.axis).toBe("x");
+    expect(tilt(slab).aboutZ).toBeLessThan(-0.05); // its +x end has gone down
+  });
 });

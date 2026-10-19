@@ -221,7 +221,7 @@ export default function Game() {
 
           <ViewFrame
             title="Top View"
-            hint="2D plan · aim with the mouse · click to drop"
+            hint="plan in perspective · aim with the mouse · click to drop"
             badge={
               <span className="hidden font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground sm:inline">
                 world X / Z

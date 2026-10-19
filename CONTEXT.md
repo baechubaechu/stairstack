@@ -10,14 +10,20 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
 - Settling (`tipping.js`): members never slide or twist. Landing with its centre of mass over its support,
   a member stays level; hanging off it, it tips over that edge about one grid axis (the one it hangs out
   further along; dead diagonal → its long side, square → x), moving only as far as the pivot takes it.
-  It lands on a slope's top edge, so it tips to lie along the slope by the same rule.
+  It lands on a slope's top edge, so it tips to lie along the slope by the same rule. A centre within
+  0.1 m of the support's edge still holds. Before the drop the same rule is forecast (`tipForecast`,
+  downward ray probes under the footprint): an arrow on the plan footprint, and a curved arrow on the
+  member in flight when it tips across the face being read.
 - A/D move, W/Space jump · Hold into an elevation edge 0.1 s: turn to the next face · Esc: pause
 - Jump feel: coyote time, jump buffer, fresh-press only, tap = low hop / hold = full jump, apex hang,
   heavier fall; running accelerates/decelerates; ledges up to 0.35 m are walked up (step-up).
 - Layout: elevation left, plan right; between them a column of the next QUEUE_AHEAD (3) members, nearest on top; the member in play is in the footer (NOW)
 
 ## Current game state (as built on Base44, now developed here)
-1. Top view + elevation, face widget (3D cube showing the viewed face), compass N/E/S/W.
+1. Top view + elevation, face widget (3D cube showing the viewed face), compass N/E/S/W. The top view
+   is drawn in perspective from the side being read (its near edge is the elevation's plane, its
+   left-right the elevation's), turning with the face and rising with the climber; members are 3D
+   boxes. Drawing only — the mouse aims on the plane the member will land at.
    FRONT = viewed from SOUTH (start), RIGHT = EAST, BACK = NORTH, LEFT = WEST.
 2. Face switching with dashed turn lines at the elevation edges. A blocked face (climber's spot is taken)
    shakes, tints red, shows "BLOCKED — TURNING BACK" and marks the spot with an X, then turns back.

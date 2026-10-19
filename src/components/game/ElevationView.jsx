@@ -48,6 +48,39 @@ const CAM_RATE = 4;
 // The drafting grid, laid faintly over the sky so the sheet still reads as a drawing.
 const SKY_GRID = "rgba(255,255,255,0.22)";
 
+// The tip forecast on the member in flight: a curved arrow over its end on side `dir` (+1 right,
+// −1 left), sweeping out and down the way that end will go.
+function drawTipArc(ctx, poly, X, Y, dir, scale) {
+  const us = poly.map((p) => p[0]);
+  const top = Math.max(...poly.map((p) => p[1]));
+  const end = dir > 0 ? Math.max(...us) : Math.min(...us);
+  const r = Math.max(14, 0.55 * scale);
+  const x0 = X(end) - dir * r * 0.9;
+  const y0 = Y(top) - r * 0.35;
+  const x1 = X(end) + dir * r * 0.45;
+  const y1 = Y(top) + r * 0.75;
+  const cx = X(end) + dir * r * 0.35;
+  const cy = Y(top) - r * 0.6;
+  ctx.save();
+  ctx.strokeStyle = ACCENT;
+  ctx.fillStyle = ACCENT;
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.quadraticCurveTo(cx, cy, x1, y1 - 5);
+  ctx.stroke();
+  // the head, pointing along the curve's last stretch
+  const a = Math.atan2(y1 - cy, x1 - cx);
+  ctx.beginPath();
+  ctx.moveTo(x1 + Math.cos(a) * 4, y1 + Math.sin(a) * 4);
+  ctx.lineTo(x1 - Math.cos(a - 0.5) * 9, y1 - Math.sin(a - 0.5) * 9);
+  ctx.lineTo(x1 - Math.cos(a + 0.5) * 9, y1 - Math.sin(a + 0.5) * 9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
 // Ink that stays readable wherever it lands: the lava floods the floor and the axis captions
 // with it, so every label under the surface gets a paper-coloured halo first.
 function haloText(ctx, text, x, y) {
@@ -241,6 +274,11 @@ export default function ElevationView({ engineRef }) {
       const act = proj.active;
       if (act && act.poly.length >= 3) {
         paintMember(ctx, act.poly, X, Y, { type: act.type, hex: act.hex, screenAngle: -act.angle, scale, dash: [6, 4] });
+        // If it will tip across this face, a curved arrow off the end that goes down. A tip
+        // toward or away from the viewer doesn't show here; the plan's arrow has it.
+        const tip = shown.squash === 1 ? eng.tipForecast() : null;
+        const face = FACES[shown.id];
+        if (tip && tip.axis === face.axis) drawTipArc(ctx, act.poly, X, Y, face.sign * tip.sign, scale);
       }
     }
 

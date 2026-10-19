@@ -7,7 +7,7 @@
 //   character, state, views    the climber, the run's state, and the derived projections
 import { BLOCKED_SECONDS, CHAR_STEP, COMPASS, FACES, LAVA_START, MEMBER_BY_ID, PHYS_STEP, QUEUE_AHEAD, SEQUENCE } from "./constants";
 import { charStep, createCharacter, headStrike, respawn } from "./climber";
-import { settle } from "./tipping";
+import { forecastTip, settle } from "./tipping";
 import { descend, release, spawnActive } from "./drop";
 import { seedFloor, stepFloors } from "./floors";
 import { advanceRun, buryDeep, petrify, reachHeight, resetRun } from "./survival";
@@ -242,6 +242,10 @@ export function createEngine(RAPIER, input) {
     },
     get plans() {
       return g.views.plans;
+    },
+    // Which way the member in play would tip if it landed where it is aimed: { axis, sign } or null.
+    tipForecast() {
+      return state.active ? forecastTip(g, placement(g)) : null;
     },
     placement: () => placement(g),
     viewFor: (faceId) => viewFor(g, faceId),

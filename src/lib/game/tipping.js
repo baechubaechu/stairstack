@@ -21,6 +21,13 @@ import { convexHull } from "./hull";
 const AIRBORNE_STEPS = 6;
 // How close the two overhangs must be to count as a dead diagonal, in metres.
 const DIAGONAL = 0.02;
+// A centre this close to the edge of its support still counts as over it, in metres — so a
+// member centred right on an edge holds, and the forecast (which samples the support) agrees.
+const ON_EDGE = 0.1;
+// Spacing of the downward probes the forecast feels the stack with, and how close to the highest
+// one a probe must hit to count as touching first, in metres.
+const PROBE = 0.125;
+const FIRST_TOUCH = 0.02;
 // The most a tipping member's centre may shift the way it tips, in metres (or its half thickness,
 // if that is less).
 const PIVOT_REACH = 0.3;
@@ -60,7 +67,7 @@ export function overhang(support, c) {
     const d = [c[0] - q[0], c[1] - q[1]];
     if (!best || Math.hypot(d[0], d[1]) < Math.hypot(best[0], best[1])) best = d;
   }
-  return best && Math.hypot(best[0], best[1]) > 1e-4 ? best : null;
+  return best && Math.hypot(best[0], best[1]) > ON_EDGE ? best : null;
 }
 
 function inside(poly, c) {
@@ -151,4 +158,39 @@ function holdToPivot(m) {
     body.setTranslation({ x: t.x, y: t.y, z: held }, true);
     body.setLinvel({ x: v.x, y: v.y, z: 0 }, true);
   }
+}
+
+// The forecast for the member in play, before it is dropped: which way it will tip where it is
+// aimed now, or null if it will land level. It feels the stack under its footprint with a grid
+// of downward rays; the probes that meet the highest surface are where a member falling flat
+// touches first — its support — and the same rule as on landing reads the tip off that.
+// Returns { axis: "x" | "z", sign: ±1 }, the way its overhanging side goes down.
+export function forecastTip(g, p) {
+  const { RAPIER, world } = g;
+  const quarter = Math.round(p.yaw / (Math.PI / 2));
+  const fx = quarter % 2 ? p.type.d : p.type.w;
+  const fz = quarter % 2 ? p.type.w : p.type.d;
+  const nx = Math.round(fx / PROBE);
+  const nz = Math.round(fz / PROBE);
+  const from = p.y - p.type.h / 2;
+  const hits = [];
+  let top = -Infinity;
+  for (let i = 0; i < nx; i++) {
+    for (let k = 0; k < nz; k++) {
+      const x = p.x - fx / 2 + (i + 0.5) * PROBE;
+      const z = p.z - fz / 2 + (k + 0.5) * PROBE;
+      const hit = world.castRay(new RAPIER.Ray({ x, y: from, z }, { x: 0, y: -1, z: 0 }), from + 1, true);
+      if (!hit) continue;
+      const y = from - hit.timeOfImpact;
+      hits.push([x, z, y]);
+      if (y > top) top = y;
+    }
+  }
+  const support = hits.filter((h) => h[2] >= top - FIRST_TOUCH).map((h) => [h[0], h[1]]);
+  if (!support.length) return null;
+  const d = overhang(convexHull(support), [p.x, p.z]);
+  if (!d) return null;
+  const flat = { hx: fx / 2, hz: fz / 2, body: { rotation: () => ({ x: 0, y: 0, z: 0, w: 1 }) } };
+  const axis = tipAxis(d, flat);
+  return { axis, sign: Math.sign(axis === "x" ? d[0] : d[1]) };
 }

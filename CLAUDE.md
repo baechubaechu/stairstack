@@ -30,6 +30,8 @@ Tailwind 3. No backend. Game design notes and history: `CONTEXT.md`. Planned wor
 `src/components/game/` — React UI. `Game.jsx` boots Rapier and owns the single animation loop: each frame
 it steps the engine, then every canvas draws via `useFrame` (`frame.js`). Canvases size themselves with
 `useCanvasSize`. `src/components/ui/button.jsx` is the one shadcn component in use. Alias `@/` → `src/`.
+`PlanView.jsx` draws the plan through `perspective.js` (a camera behind the face being read; render only,
+the engine never reads it).
 `src/components/game/art/` — decoration only, never read by the engine: `materials.js` (per-type member
 textures, top-lit shading, contact shadows), `scene.js` (dusk sky, foundation section, lava surface/glow/
 embers, plan-view lava), `climber.js` (the hard-hat figure, its poses, landing dust). Render-side
