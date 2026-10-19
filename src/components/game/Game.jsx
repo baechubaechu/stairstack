@@ -9,6 +9,7 @@ import FaceIndicator from "@/components/game/FaceIndicator";
 import { FrameContext } from "@/components/game/frame";
 import GameOverOverlay from "@/components/game/GameOverOverlay";
 import StartOverlay from "@/components/game/StartOverlay";
+import PauseOverlay from "@/components/game/PauseOverlay";
 import { LAVA_START, SPAWN } from "@/lib/game/constants";
 import * as music from "@/lib/game/music";
 import { fetchLeaderboard, submitRun } from "@/lib/telemetry";
@@ -52,6 +53,7 @@ export default function Game() {
   const [engineState, setEngineState] = useState("loading");
   const [stats, setStats] = useState(INITIAL);
   const [muted, setMuted] = useState(music.isMuted);
+  const [volume, setVolume] = useState(music.getVolume);
 
   const push = useCallback(() => {
     const eng = engineRef.current;
@@ -194,6 +196,10 @@ export default function Game() {
     music.setMuted(!muted);
     setMuted(!muted);
   }, [muted]);
+  const changeVolume = useCallback((v) => {
+    music.setVolume(v);
+    setVolume(v);
+  }, []);
 
   const startGame = useCallback(() => {
     music.rewind();
@@ -265,6 +271,16 @@ export default function Game() {
         <NowNext stats={stats} />
   
         {stats.mode === "menu" ? <StartOverlay engineState={engineState} onStart={startGame} /> : null}
+        {stats.mode === "play" && stats.paused && !stats.over ? (
+          <PauseOverlay
+            onResume={togglePause}
+            onRestart={restart}
+            volume={volume}
+            onVolume={changeVolume}
+            muted={muted}
+            onToggleMute={toggleMute}
+          />
+        ) : null}
         {stats.over ? <GameOverOverlay stats={stats} board={board} onRetry={restart} /> : null}
       </div>
     </FrameContext.Provider>

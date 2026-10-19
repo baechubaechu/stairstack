@@ -14,7 +14,7 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
   0.1 m of the support's edge still holds. Before the drop the same rule is forecast (`tipForecast`,
   downward ray probes under the footprint): an arrow on the plan footprint, and a curved arrow on the
   member in flight when it tips across the face being read.
-- A/D move, W/Space jump · Hold into an elevation edge 0.1 s: turn to the next face · Esc: pause
+- A/D move, W/Space jump · Hold into an elevation edge 0.1 s: turn to the next face · Esc: pause (opens the pause menu: resume, restart — two clicks —, music volume / mute, the controls guide)
 - Jump feel: coyote time, jump buffer, fresh-press only, tap = low hop / hold = full jump, apex hang,
   heavier fall; running accelerates/decelerates; ledges up to 0.35 m are walked up (step-up).
 - Layout: elevation left, plan right; between them a column of the next QUEUE_AHEAD (3) members, nearest on top; the member in play is in the footer (NOW)
