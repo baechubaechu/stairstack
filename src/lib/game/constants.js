@@ -12,8 +12,10 @@ export const MEMBER_TYPES = [
 
 export const MEMBER_BY_ID = Object.fromEntries(MEMBER_TYPES.map((t) => [t.id, t]));
 
-// The drop order: NOW / NEXT read from this, indexed by how many members exist.
+// The drop order: NOW / NEXT read from this, indexed by how many members have been dropped.
 export const SEQUENCE = ["slab", "plank", "block", "step", "beam", "slab", "block", "plank", "step", "slab"];
+// How many members after the one in play the queue between the two views shows.
+export const QUEUE_AHEAD = 3;
 
 export const GROUND_HALF = 6;
 
@@ -46,9 +48,9 @@ export const STONE = { hex: "#4b4542", color: 0x4b4542 };
 export const BURY_DEPTH = 1;
 
 // Members sink in faster the longer a run lasts — AUTO_FALL_SECONDS at the first second,
-// down to a quarter of that once the ramp bottoms out.
-export const FALL_RAMP = 0.05; // per second
-export const FALL_MAX = 4; // × faster at the cap, about a minute in
+// down to 1 / FALL_MAX of that once the ramp bottoms out.
+export const FALL_RAMP = 0.025; // per second
+export const FALL_MAX = 2.5; // × faster at the cap, about a minute in
 
 // Members are released from the very top of the play area — the top of the elevation
 // window — so every drop reads as a full fall down onto the stack.
@@ -63,7 +65,7 @@ export const VIEW_BOTTOM = -1.1;
 
 // How long an unattended member takes to sink from the release height to the stack:
 // it descends on its own at a slow, steady rate, and a click drops it at once instead.
-export const AUTO_FALL_SECONDS = 3;
+export const AUTO_FALL_SECONDS = 5;
 
 // The elevation turns to the next face over this long — and turns straight back over the
 // same time when the climber's place on that face is already taken.

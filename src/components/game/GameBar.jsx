@@ -1,6 +1,4 @@
 import { Button } from "@/components/ui/button";
-import NextBlockPreview from "@/components/game/NextBlockPreview";
-import { MEMBER_BY_ID } from "@/lib/game/constants";
 
 const stat = "flex items-baseline gap-1 font-mono text-[11px] tracking-tight";
 
@@ -14,10 +12,9 @@ const BADGE = {
 export default function GameBar({ stats, engineState, onTogglePause, onRestart, muted, onToggleMute }) {
   const ready = engineState === "ready";
   const badge = (stats.over && BADGE.over) || (stats.paused && BADGE.paused) || BADGE[stats.mode] || BADGE.menu;
-  const next = MEMBER_BY_ID[stats.nextId];
 
   return (
-    <header className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-border bg-card px-4 py-2">
+    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-card px-4 py-2">
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <h1 className="font-display text-lg font-semibold tracking-[0.3em] text-foreground">STAIRSTACK</h1>
         <span
@@ -26,18 +23,6 @@ export default function GameBar({ stats, engineState, onTogglePause, onRestart, 
         >
           {badge.label}
         </span>
-      </div>
-
-      {/* the slot: the block that comes next, turning on the spot in the middle of the top bar */}
-      <div className="hidden items-center gap-2.5 rounded-lg border border-border bg-muted/40 px-3 py-1 lg:flex">
-        <NextBlockPreview typeId={stats.nextId} />
-        <div className="leading-tight">
-          <p className="font-mono text-[8px] uppercase tracking-[0.24em] text-muted-foreground">Next block</p>
-          <p className="font-mono text-[11px] uppercase tracking-wider text-foreground">{next ? next.label : "—"}</p>
-          <p className="font-mono text-[8px] text-muted-foreground">
-            {next ? `${next.w.toFixed(1)}×${next.h.toFixed(1)}×${next.d.toFixed(1)} m` : ""}
-          </p>
-        </div>
       </div>
 
       <div className="flex min-w-0 flex-wrap items-center justify-end gap-x-3 gap-y-1">

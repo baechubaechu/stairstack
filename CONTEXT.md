@@ -10,7 +10,7 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
 - A/D move, W/Space jump · Hold into an elevation edge 0.1 s: turn to the next face · Esc: pause
 - Jump feel: coyote time, jump buffer, fresh-press only, tap = low hop / hold = full jump, apex hang,
   heavier fall; running accelerates/decelerates; ledges up to 0.35 m are walked up (step-up).
-- NOW / NEXT piece preview
+- Layout: elevation left, plan right; between them a column of the next QUEUE_AHEAD (3) members, nearest on top; the member in play is in the footer (NOW)
 
 ## Current game state (as built on Base44, now developed here)
 1. Top view + elevation, face widget (3D cube showing the viewed face), compass N/E/S/W.
@@ -22,7 +22,7 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
    deleted for performance) — they used to vanish, which collapsed the tower and made climbing high
    impossible. Climber touching lava = game over; a member falling onto the climber's head = game over.
    Score = survival (+10/s) + height (1 point per cm of the best height the climber has *stood* at;
-   jump apexes don't count). Members sink in up to 4× faster over time. The elevation window follows the climber up
+   jump apexes don't count). Members sink in on their own over 5 s, up to 2.5× faster about a minute in. The elevation window follows the climber up
    and members are released from its top.
 4. Floor slabs (`src/lib/game/floors.js`) — replaced the old directional plates. A concrete slab covers
    the plan except a 1.8 m gap strip along one edge: from the two faces looking along that edge it is a

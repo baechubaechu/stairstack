@@ -54,7 +54,6 @@ export default function NowNext({ stats }) {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <MemberCard label="Now" typeId={stats.nowId} dim={playing ? `yaw ${deg}°` : "waiting"} />
-          <MemberCard label="Next" typeId={stats.nextId} dim="queued" />
         </div>
 
         <p data-testid="status-message" className={`min-w-[220px] flex-1 font-mono text-[10px] leading-relaxed ${tone}`}>

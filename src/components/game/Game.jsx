@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import GameBar from "@/components/game/GameBar";
 import NowNext from "@/components/game/NowNext";
+import NextQueue from "@/components/game/NextQueue";
 import ViewFrame from "@/components/game/ViewFrame";
 import PlanView from "@/components/game/PlanView";
 import ElevationView from "@/components/game/ElevationView";
@@ -11,9 +12,9 @@ import StartOverlay from "@/components/game/StartOverlay";
 import { LAVA_START, SPAWN } from "@/lib/game/constants";
 import * as music from "@/lib/game/music";
 
-const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, timeScore: 0, heightScore: 0, best: 0, time: 0, lava: LAVA_START, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "slab", nextId: "plank" };
+const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, timeScore: 0, heightScore: 0, best: 0, time: 0, lava: LAVA_START, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "slab", nextIds: ["plank", "block", "step"] };
 const snap = (s) =>
-  `${s.score}|${s.time.toFixed(1)}|${s.lava.toFixed(2)}|${s.members}|${s.top.toFixed(1)}|${s.x.toFixed(2)}|${s.yaw.toFixed(3)}|${s.cause}|${s.mode}|${s.paused}|${s.face}|${s.nowId}|${s.nextId}`;
+  `${s.score}|${s.time.toFixed(1)}|${s.lava.toFixed(2)}|${s.members}|${s.top.toFixed(1)}|${s.x.toFixed(2)}|${s.yaw.toFixed(3)}|${s.cause}|${s.mode}|${s.paused}|${s.face}|${s.nowId}|${s.nextIds.join(",")}`;
 
 // Which action a key event means. Judged by the physical key code first, because a
 // non-Latin input method (e.g. the Korean IME) reports e.key as a composed character
@@ -199,7 +200,25 @@ export default function Game() {
           onToggleMute={toggleMute}
         />
   
-        <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[1.02fr_1fr] lg:overflow-hidden">
+        <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[1fr_auto_1.02fr] lg:overflow-hidden">
+          <ViewFrame
+            title="Elevation"
+            hint={`${stats.faceLabel} face · lava ${stats.lava.toFixed(1)} m · depth collapsed`}
+          >
+            <ElevationView engineRef={engineRef} />
+            <div className="pointer-events-none absolute right-2 top-2 flex flex-col items-center rounded-md border border-border bg-card/90 px-1.5 pb-1 shadow-sm">
+              <FaceIndicator engineRef={engineRef} />
+              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-ochre">
+                {stats.faceLabel}
+              </span>
+              <span className="font-mono text-[7px] uppercase tracking-[0.14em] text-muted-foreground">
+                Viewed from {stats.faceSide}
+              </span>
+            </div>
+          </ViewFrame>
+
+          <NextQueue ids={stats.nextIds} />
+
           <ViewFrame
             title="Top View"
             hint="2D plan · aim with the mouse · click to drop"
@@ -219,21 +238,6 @@ export default function Game() {
             ) : null}
           </ViewFrame>
   
-          <ViewFrame
-            title="Elevation"
-            hint={`${stats.faceLabel} face · lava ${stats.lava.toFixed(1)} m · depth collapsed`}
-          >
-            <ElevationView engineRef={engineRef} />
-            <div className="pointer-events-none absolute right-2 top-2 flex flex-col items-center rounded-md border border-border bg-card/90 px-1.5 pb-1 shadow-sm">
-              <FaceIndicator engineRef={engineRef} />
-              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-ochre">
-                {stats.faceLabel}
-              </span>
-              <span className="font-mono text-[7px] uppercase tracking-[0.14em] text-muted-foreground">
-                Viewed from {stats.faceSide}
-              </span>
-            </div>
-          </ViewFrame>
         </main>
   
         <NowNext stats={stats} />

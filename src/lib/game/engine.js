@@ -5,7 +5,7 @@
 //   RAPIER, world, input       the physics library, its world, and the held keys
 //   members, preview           the placed rigid bodies, and where the member in play is aimed
 //   character, state, views    the climber, the run's state, and the derived projections
-import { BLOCKED_SECONDS, CHAR_STEP, COMPASS, FACES, LAVA_START, MEMBER_BY_ID, PHYS_STEP, SEQUENCE } from "./constants";
+import { BLOCKED_SECONDS, CHAR_STEP, COMPASS, FACES, LAVA_START, MEMBER_BY_ID, PHYS_STEP, QUEUE_AHEAD, SEQUENCE } from "./constants";
 import { charStep, createCharacter, headStrike, respawn } from "./climber";
 import { descend, release, spawnActive } from "./drop";
 import { seedFloor, stepFloors } from "./floors";
@@ -205,7 +205,8 @@ export function createEngine(RAPIER, input) {
       faceLabel: FACES[state.face].label,
       faceSide: COMPASS[FACES[state.face].compass],
       nowId: SEQUENCE[i],
-      nextId: SEQUENCE[(i + 1) % SEQUENCE.length],
+      // the members after it, nearest first, for the queue between the two views
+      nextIds: Array.from({ length: QUEUE_AHEAD }, (_, k) => SEQUENCE[(i + 1 + k) % SEQUENCE.length]),
     };
   }
 

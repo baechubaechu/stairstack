@@ -19,7 +19,7 @@ const PITCH = 0.5;
 const LIGHT = [-0.45, 0.78, 0.44];
 
 // The block that comes next, turning on the spot so its shape reads in three dimensions.
-export default function NextBlockPreview({ typeId }) {
+export default function NextBlockPreview({ typeId, className = "h-[46px] w-[46px]" }) {
   const canvasRef = useRef(null);
   const yawRef = useRef(0.7);
 
@@ -77,5 +77,5 @@ export default function NextBlockPreview({ typeId }) {
     }
   });
 
-  return <canvas ref={canvasRef} className="h-[46px] w-[46px] shrink-0" />;
+  return <canvas ref={canvasRef} className={`shrink-0 ${className}`} />;
 }
