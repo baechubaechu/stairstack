@@ -4,7 +4,7 @@ import { paintMember } from "@/components/game/art/materials";
 import { drawPlanLava } from "@/components/game/art/scene";
 import useCanvasSize from "@/components/game/useCanvasSize";
 import { MONO, tracePoly } from "@/lib/game/canvas";
-import { AIM_LIMIT, FACES, GROUND_HALF, ROTATE_STEP_DEG } from "@/lib/game/constants";
+import { AIM_LIMIT, FACES, FLOOR, GROUND_HALF, ROTATE_STEP_DEG } from "@/lib/game/constants";
 import {
   ACCENT,
   ACCENT_SOFT,
@@ -26,6 +26,11 @@ const SPAN = 13.4;
 const FACE_STRIP = 0.45;
 const ROTATE_STEP = (ROTATE_STEP_DEG * Math.PI) / 180;
 const clampAim = (v) => Math.max(-AIM_LIMIT, Math.min(AIM_LIMIT, v));
+// A pencilled floor slab fills in as the climber nears it: no fill while its underside is
+// SLAB_FAR metres or more above their feet, full SLAB_FILL once it is within SLAB_NEAR.
+const SLAB_FAR = 5;
+const SLAB_NEAR = 1;
+const SLAB_FILL = 0.6;
 
 // TOP VIEW — a 2D plan of the same rigid bodies: X / Z footprints, depth Y collapsed. Each
 // footprint throws a shadow that reaches further the higher the member sits, so the plan
@@ -246,22 +251,39 @@ export default function PlanView({ engineRef, onDrop }) {
       ctx.restore();
     }
 
-    // solid footprints in their materials — a floor slab nobody has stood on yet is only
-    // pencilled in, faint enough that the stack under it still reads through it
+    // solid footprints in their materials. A floor slab nobody has stood on yet is only
+    // pencilled in: from far below it is just its dashed outline, so the plate under it still
+    // reads as open ground to build on, and it fills in as the climber nears its underside.
+    const feet = eng.character.y - eng.character.hh;
     for (const plan of stack) {
       if (plan.poly.length < 3) continue;
       const pencilled = plan.floor && !plan.floor.active;
-      ctx.save();
-      if (pencilled) ctx.globalAlpha = 0.28;
+      if (pencilled) {
+        const below = plan.top - FLOOR.h - feet;
+        const near = 1 - Math.min(1, Math.max(0, (below - SLAB_NEAR) / (SLAB_FAR - SLAB_NEAR)));
+        if (near > 0) {
+          ctx.save();
+          ctx.globalAlpha = SLAB_FILL * near;
+          paintMember(ctx, plan.poly, X, Y, { type: plan.type, hex: plan.hex, scale, outline: edgeOf(plan.hex) });
+          ctx.restore();
+        }
+        ctx.save();
+        ctx.setLineDash([6, 4]);
+        ctx.globalAlpha = 0.55;
+        tracePoly(ctx, plan.poly, X, Y);
+        ctx.strokeStyle = edgeOf(plan.hex);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+        continue;
+      }
       paintMember(ctx, plan.poly, X, Y, {
         type: plan.type,
         hex: plan.hex,
         screenAngle: plan.angle,
         scale,
         outline: edgeOf(plan.hex),
-        dash: pencilled ? [6, 4] : null,
       });
-      ctx.restore();
     }
 
     // the climber's column on the view being read — a wall that crosses the whole plate,
