@@ -1,7 +1,7 @@
 // The arcade rules of the endless run, kept apart from the physics: the clock and the score it
 // earns, the lava climbing out of the floor, and the way members sink in faster the longer the
 // run goes on. Everything here reads the same rigid bodies the rest of the engine does.
-import { FALL_MAX, FALL_RAMP, LAVA_ACCEL, LAVA_SPEED, LAVA_START, SCORE_PER_SECOND } from "./constants";
+import { FALL_MAX, FALL_RAMP, LAVA_ACCEL, LAVA_DELAY, LAVA_SPEED, LAVA_START, SCORE_PER_SECOND } from "./constants";
 import { memberVertices } from "./elevation";
 
 // Every run starts the same way: the clock at zero, and the lava at the foot of the tower.
@@ -17,7 +17,9 @@ export function resetRun(state) {
 export function advanceRun(state, dt) {
   state.elapsed += dt;
   state.score = Math.floor(state.elapsed * SCORE_PER_SECOND);
-  state.lava += (LAVA_SPEED + LAVA_ACCEL * state.elapsed) * dt;
+  // the lava waits out the opening, then rises at a pace that grows from the moment it moved
+  const rising = state.elapsed - LAVA_DELAY;
+  if (rising > 0) state.lava += (LAVA_SPEED + LAVA_ACCEL * rising) * Math.min(dt, rising);
 }
 
 // How much faster members sink in now than at the first second of the run.

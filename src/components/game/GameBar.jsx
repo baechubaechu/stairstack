@@ -11,7 +11,7 @@ const BADGE = {
   over: { label: "Game Over", className: "border-rose-300 bg-rose-50 text-rose-600" },
 };
 
-export default function GameBar({ stats, engineState, onTogglePause, onRestart }) {
+export default function GameBar({ stats, engineState, onTogglePause, onRestart, muted, onToggleMute }) {
   const ready = engineState === "ready";
   const badge = (stats.over && BADGE.over) || (stats.paused && BADGE.paused) || BADGE[stats.mode] || BADGE.menu;
   const next = MEMBER_BY_ID[stats.nextId];
@@ -73,6 +73,9 @@ export default function GameBar({ stats, engineState, onTogglePause, onRestart }
           onClick={onTogglePause}
         >
           {stats.paused ? "Resume" : "Pause"}
+        </Button>
+        <Button size="sm" variant="outline" data-testid="btn-mute" onClick={onToggleMute}>
+          {muted ? "Music off" : "Music on"}
         </Button>
         <Button size="sm" variant="outline" data-testid="btn-restart" disabled={!ready} onClick={onRestart}>
           Restart

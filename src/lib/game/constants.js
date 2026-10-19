@@ -25,9 +25,13 @@ export const ROTATE_STEP_DEG = 15;
 // Endless survival: the run is scored by how long it lasts, and the floor is giving way.
 // The lava surfaces under the floor line, floods the ground first, then climbs the stack and
 // eats it from underneath. Touch it and the run is over.
+// The opening is gentle: the lava holds still for LAVA_DELAY seconds while the first members
+// come down, then creeps up slowly and gathers pace — it floods the floor about half a
+// minute in, and only becomes the real threat after that.
 export const LAVA_START = -1;
-export const LAVA_SPEED = 0.06; // m/s it rises at the start of a run
-export const LAVA_ACCEL = 0.0014; // m/s² — and it keeps gaining
+export const LAVA_DELAY = 5; // s before the lava starts to rise at all
+export const LAVA_SPEED = 0.02; // m/s it rises once it starts
+export const LAVA_ACCEL = 0.0012; // m/s² — and it keeps gaining
 export const SCORE_PER_SECOND = 10; // survival score: a point every tenth of a second
 
 // Members sink in faster the longer a run lasts — AUTO_FALL_SECONDS at the first second,
@@ -38,6 +42,11 @@ export const FALL_MAX = 4; // × faster at the cap, about a minute in
 // Members are released from the very top of the play area — the top of the elevation
 // window — so every drop reads as a full fall down onto the stack.
 export const DROP_Y = 8.6;
+
+// The elevation window follows the climber up once their feet are more than VIEW_FOLLOW metres
+// above the floor, rising by the excess — and members are released that much higher too, so
+// they still fall in from the top of the window however high the climb has got.
+export const VIEW_FOLLOW = 3.2;
 
 // How long an unattended member takes to sink from the release height to the stack:
 // it descends on its own at a slow, steady rate, and a click drops it at once instead.

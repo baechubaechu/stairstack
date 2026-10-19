@@ -1,6 +1,15 @@
 // The physics side of the game: the one Rapier world, its floor and curbs, and the members
 // dropped into it — plus the height questions every other module asks of the stack.
-import { DROP_Y, FACES, GROUND_HALF, MEMBER_BY_ID, MEMBER_GRAVITY, PHYS_STEP, SEQUENCE } from "./constants";
+import {
+  DROP_Y,
+  FACES,
+  GROUND_HALF,
+  MEMBER_BY_ID,
+  MEMBER_GRAVITY,
+  PHYS_STEP,
+  SEQUENCE,
+  VIEW_FOLLOW,
+} from "./constants";
 import { faceU, memberVertices } from "./elevation";
 
 export function quatFromEuler(x, y, z) {
@@ -112,14 +121,26 @@ export function nextType(g) {
   return MEMBER_BY_ID[SEQUENCE[g.members.length % SEQUENCE.length]];
 }
 
+// How far the elevation window has climbed to follow the climber (see VIEW_FOLLOW).
+export function viewRise(g) {
+  const { character } = g;
+  return Math.max(0, character.y - character.hh - VIEW_FOLLOW);
+}
+
+// The height members are released from: the top of the window, wherever it has climbed to.
+export function releaseY(g) {
+  return DROP_Y + viewRise(g);
+}
+
 // Where the member in play is right now: it rides the mouse for X / Z, and its height is
 // wherever the slow descent has carried it — never below the top of the stack beneath it.
 export function placement(g) {
   const { state, preview } = g;
   const type = state.active ? state.active.type : nextType(g);
-  const bottom = state.active ? state.active.y - type.h / 2 : DROP_Y - type.h / 2;
+  const top = releaseY(g);
+  const bottom = state.active ? state.active.y - type.h / 2 : top - type.h / 2;
   const landing = topUnder(g, preview.x, preview.z, type, bottom) + type.h / 2 + 0.08;
-  const y = state.active ? Math.max(landing, state.active.y) : Math.max(DROP_Y, landing + 0.5);
+  const y = state.active ? Math.max(landing, state.active.y) : Math.max(top, landing + 0.5);
   return { type, x: preview.x, z: preview.z, y, landing, yaw: preview.yaw };
 }
 

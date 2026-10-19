@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FACES, FALL_MAX, LAVA_START, SCORE_PER_SECOND } from "./constants";
+import { FACES, FALL_MAX, LAVA_DELAY, LAVA_START, SCORE_PER_SECOND } from "./constants";
 import { boxVertices, faceU } from "./elevation";
 import { convexHull, expandForBox, penetration, signedArea } from "./hull";
 import { advanceRun, resetRun, sinkFactor } from "./survival";
@@ -46,12 +46,14 @@ describe("elevation", () => {
 });
 
 describe("survival", () => {
-  it("scores time survived and raises the lava", () => {
+  it("scores time survived and holds the lava still through the opening", () => {
     const s = {};
     resetRun(s);
     expect(s.lava).toBe(LAVA_START);
     for (let i = 0; i < 100; i++) advanceRun(s, 0.01);
-    expect(s.score).toBe(SCORE_PER_SECOND - 0); // one second in
+    expect(s.score).toBe(SCORE_PER_SECOND); // one second in
+    expect(s.lava).toBe(LAVA_START); // still inside LAVA_DELAY
+    for (let i = 0; i < 100; i++) advanceRun(s, LAVA_DELAY / 50);
     expect(s.lava).toBeGreaterThan(LAVA_START);
   });
 

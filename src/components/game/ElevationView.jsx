@@ -14,6 +14,7 @@ import {
   drawEmbers,
   drawGround,
   drawLava,
+  drawLavaBelow,
   drawLavaGlow,
   drawSky,
   stepEmbers,
@@ -21,14 +22,28 @@ import {
 import { useFrame } from "@/components/game/frame";
 import useCanvasSize from "@/components/game/useCanvasSize";
 import { MONO, roundRect } from "@/lib/game/canvas";
-import { CHARACTER, COMPASS, DROP_Y, EDGE_LINE, FACES, GROUND_HALF, LAVA_START } from "@/lib/game/constants";
+import {
+  CHARACTER,
+  COMPASS,
+  DROP_Y,
+  EDGE_LINE,
+  FACES,
+  GROUND_HALF,
+  LAVA_START,
+  VIEW_FOLLOW,
+} from "@/lib/game/constants";
 import { faceU } from "@/lib/game/elevation";
 import { ACCENT, ACCENT_SOFT, BLOCK, BLOCK_RGB, CLIMBER_GUIDE, INK, INK_SOFT, PAPER } from "@/lib/game/palette";
 
-// Visible elevation window, in metres. It reaches just past the release height, so a
-// dropping member is on screen from the top of its fall.
-const VIEW = { xMin: -6.6, xMax: 6.6, yMin: -1.1, yMax: DROP_Y + 0.1 };
+// Visible elevation window at the start of a run, in metres. It reaches just past the release
+// height, so a dropping member is on screen from the top of its fall.
+const BASE_VIEW = { xMin: -6.6, xMax: 6.6, yMin: -1.1, yMax: DROP_Y + 0.1 };
 const SIDES = [-1, 1];
+
+// The window follows the climber up by the engine's viewRise (feet above VIEW_FOLLOW), the
+// same rise members are released from — easing toward it over ~1/CAM_RATE s so a jump
+// doesn't jerk the whole sheet.
+const CAM_RATE = 4;
 // The drafting grid, laid faintly over the sky so the sheet still reads as a drawing.
 const SKY_GRID = "rgba(255,255,255,0.22)";
 
@@ -67,31 +82,48 @@ export default function ElevationView({ engineRef }) {
 
   useFrame((dt, now) => {
     const canvas = canvasRef.current;
-    const view = viewRef.current;
-    if (!canvas || !view) return;
+    const size = viewRef.current;
+    if (!canvas || !size) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const { dpr, w, h } = view;
+    const { dpr, w, h } = size;
     if (!fx.current) {
-      fx.current = { embers: createEmbers(), dust: createDust(), anim: createClimberAnim(), lastVy: new WeakMap() };
+      fx.current = {
+        embers: createEmbers(),
+        dust: createDust(),
+        anim: createClimberAnim(),
+        lastVy: new WeakMap(),
+        camY: 0,
+      };
     }
     const { embers, dust, anim, lastVy } = fx.current;
     const t = now / 1000;
+    const eng = engineRef.current;
+
+    // the camera: ease the window toward keeping the climber's feet in its lower third
+    if (eng) {
+      const target = Math.max(0, eng.character.y - eng.character.hh - VIEW_FOLLOW);
+      fx.current.camY += (target - fx.current.camY) * (1 - Math.exp(-CAM_RATE * Math.min(dt, 0.1)));
+    }
+    const camY = fx.current.camY;
+    const view = { ...BASE_VIEW, yMin: BASE_VIEW.yMin + camY, yMax: BASE_VIEW.yMax + camY };
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = PAPER;
     ctx.fillRect(0, 0, w, h);
 
-    const spanX = VIEW.xMax - VIEW.xMin;
-    const spanY = VIEW.yMax - VIEW.yMin;
+    const spanX = view.xMax - view.xMin;
+    const spanY = view.yMax - view.yMin;
     const scale = Math.min(w / spanX, h / spanY);
     const ox = (w - spanX * scale) / 2;
     const oy = (h - spanY * scale) / 2;
-    const X = (x) => ox + (x - VIEW.xMin) * scale;
-    const Y = (y) => oy + (VIEW.yMax - y) * scale;
+    const X = (x) => ox + (x - view.xMin) * scale;
+    const Y = (y) => oy + (view.yMax - y) * scale;
+    // whole metres inside the window, for the grid and its height captions
+    const gyMin = Math.ceil(view.yMin);
+    const gyMax = Math.floor(view.yMax);
 
-    const eng = engineRef.current;
     const live = eng && eng.mode === "play" && !eng.stats().paused;
     // While the elevation turns, the plane collapses to a line and the projection from
     // the side being turned to opens up in its place.
@@ -106,7 +138,7 @@ export default function ElevationView({ engineRef }) {
 
     // the effects only move while the run does, so a pause holds them too
     if (live) {
-      stepEmbers(embers, dt, lv, VIEW);
+      stepEmbers(embers, dt, lv, view);
       stepDust(dust, dt);
       if (!turn) memberImpacts(eng, lastVy, dust);
       const c = eng.character;
@@ -128,31 +160,39 @@ export default function ElevationView({ engineRef }) {
     ctx.translate(mid, 0);
     ctx.scale(Math.max(0.02, shown.squash), 1);
     ctx.translate(-mid, 0);
+    // nothing of the world spills past the window: once it has climbed, members below it and
+    // falling ones above it are cut off at its edge instead of drawing over the margins
+    ctx.beginPath();
+    ctx.rect(X(view.xMin), Y(view.yMax), X(view.xMax) - X(view.xMin), Y(view.yMin) - Y(view.yMax));
+    ctx.clip();
 
-    drawSky(ctx, X, Y, VIEW, now);
+    drawSky(ctx, X, Y, view, now, camY);
 
     // 1 m grid, faint over the sky
     ctx.strokeStyle = SKY_GRID;
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let gx = -6; gx <= 6; gx++) {
-      ctx.moveTo(X(gx), Y(VIEW.yMax));
-      ctx.lineTo(X(gx), Y(0));
+      ctx.moveTo(X(gx), Y(view.yMax));
+      ctx.lineTo(X(gx), Y(Math.max(0, view.yMin)));
     }
-    for (let gy = 1; gy <= 8; gy++) {
-      ctx.moveTo(X(VIEW.xMin), Y(gy));
-      ctx.lineTo(X(VIEW.xMax), Y(gy));
+    for (let gy = Math.max(1, gyMin); gy <= gyMax; gy++) {
+      ctx.moveTo(X(view.xMin), Y(gy));
+      ctx.lineTo(X(view.xMax), Y(gy));
     }
     ctx.stroke();
 
-    drawGround(ctx, X, Y, VIEW, GROUND_HALF, INK);
-    drawLavaGlow(ctx, X, Y, VIEW, lv);
+    drawGround(ctx, X, Y, BASE_VIEW.yMin, GROUND_HALF, INK);
+    drawLavaGlow(ctx, X, Y, view, lv);
 
+    // height captions every 2 m, wherever the window has climbed to
     ctx.font = `10px ${MONO}`;
     ctx.fillStyle = INK_SOFT;
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    for (let gy = 0; gy <= 8; gy += 2) haloText(ctx, `${gy} m`, X(-6) - 4, Y(gy));
+    for (let gy = Math.max(0, gyMin + (gyMin % 2 !== 0 ? 1 : 0)); gy <= gyMax; gy += 2) {
+      haloText(ctx, `${gy} m`, X(-6) - 4, Y(gy));
+    }
 
     // The two lines the view turns on: walk past one and the elevation changes face. Only a
     // walk held out of an end opens the turn, so the line is exactly where that happens.
@@ -160,19 +200,20 @@ export default function ElevationView({ engineRef }) {
     ctx.setLineDash([5, 4]);
     ctx.strokeStyle = ACCENT_SOFT;
     ctx.lineWidth = 1.5;
+    const edgeTop = view.yMax - 0.7; // the arrowheads ride just under the top of the window
     ctx.beginPath();
     for (const s of SIDES) {
-      ctx.moveTo(X(s * EDGE_LINE), Y(0));
-      ctx.lineTo(X(s * EDGE_LINE), Y(8));
+      ctx.moveTo(X(s * EDGE_LINE), Y(Math.max(0, view.yMin)));
+      ctx.lineTo(X(s * EDGE_LINE), Y(edgeTop));
     }
     ctx.stroke();
     ctx.restore();
     ctx.fillStyle = ACCENT;
     for (const s of SIDES) {
       ctx.beginPath();
-      ctx.moveTo(X(s * EDGE_LINE) + s * 5, Y(8));
-      ctx.lineTo(X(s * EDGE_LINE) - s * 3, Y(8) - 4);
-      ctx.lineTo(X(s * EDGE_LINE) - s * 3, Y(8) + 4);
+      ctx.moveTo(X(s * EDGE_LINE) + s * 5, Y(edgeTop));
+      ctx.lineTo(X(s * EDGE_LINE) - s * 3, Y(edgeTop) - 4);
+      ctx.lineTo(X(s * EDGE_LINE) - s * 3, Y(edgeTop) + 4);
       ctx.closePath();
       ctx.fill();
     }
@@ -205,8 +246,9 @@ export default function ElevationView({ engineRef }) {
     }
 
     // the lava rolls over whatever it has closed over, and throws embers up the window
-    drawLava(ctx, X, Y, VIEW, lv, t);
+    drawLava(ctx, X, Y, view, lv, t);
     drawEmbers(ctx, embers, X, Y);
+    if (eng) drawLavaBelow(ctx, X, Y, view, lv, eng.character.y - eng.character.hh, MONO);
     ctx.font = `bold 10px ${MONO}`;
     ctx.fillStyle = "#fff4d6";
     ctx.textAlign = "right";
@@ -286,16 +328,18 @@ export default function ElevationView({ engineRef }) {
       ctx.fillText(text, w / 2, 22.5);
     }
 
-    // the compass side each end of the view turns to — held crisp while the plane rotates
+    // the compass side each end of the view turns to — held crisp while the plane rotates, on
+    // the ground line, or along the bottom of the window once it has climbed past the ground
     if (eng) {
       const f = FACES[eng.face];
+      const at = Y(Math.max(0, view.yMin + 0.45)) - 7;
       ctx.font = `9px ${MONO}`;
       ctx.fillStyle = INK_SOFT;
       ctx.textBaseline = "bottom";
       ctx.textAlign = "left";
-      haloText(ctx, `← ${COMPASS[FACES[f.left].compass]}`, X(-GROUND_HALF) + 4, Y(0) - 7);
+      haloText(ctx, `← ${COMPASS[FACES[f.left].compass]}`, X(-GROUND_HALF) + 4, at);
       ctx.textAlign = "right";
-      haloText(ctx, `${COMPASS[FACES[f.right].compass]} →`, X(GROUND_HALF) - 4, Y(0) - 7);
+      haloText(ctx, `${COMPASS[FACES[f.right].compass]} →`, X(GROUND_HALF) - 4, at);
       ctx.textAlign = "left";
     }
   });

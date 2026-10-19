@@ -17,17 +17,24 @@ const SKYLINE = [
   [2.6, 0.7, 2.0], [3.4, 1.1, 1.1], [4.6, 0.6, 2.6], [5.3, 1.3, 1.5],
 ];
 
-export function drawSky(ctx, X, Y, view, now) {
+// How much of the camera's climb the far scenery takes part in: 1 would pin it to the world,
+// 0 to the screen. In between, the city sinks slowly as the view rises — it reads as far away.
+const PARALLAX = 0.65;
+
+// `camY` is how far the elevation window has risen to follow the climber.
+export function drawSky(ctx, X, Y, view, now, camY = 0) {
+  // the far scenery's own heights: lifted with the camera by the parallax share
+  const Yb = (y) => Y(y + camY * PARALLAX);
   const top = Y(view.yMax);
-  const horizon = Y(0);
-  const g = ctx.createLinearGradient(0, top, 0, horizon);
+  const horizon = Yb(0);
+  const g = ctx.createLinearGradient(0, top, 0, Math.max(horizon, top + 1));
   for (const [at, color] of SKY) g.addColorStop(at, color);
   ctx.fillStyle = g;
-  ctx.fillRect(X(view.xMin), top, X(view.xMax) - X(view.xMin), horizon - top);
+  ctx.fillRect(X(view.xMin), top, X(view.xMax) - X(view.xMin), Y(view.yMin) - top);
 
   // a low sun, half sunk behind the skyline
   const sx = X(3.9);
-  const sy = Y(1.1);
+  const sy = Yb(1.1);
   const r = (Y(0) - Y(1)) * 0.75;
   const halo = ctx.createRadialGradient(sx, sy, r * 0.4, sx, sy, r * 4);
   halo.addColorStop(0, "rgba(255,226,170,0.55)");
@@ -41,7 +48,7 @@ export function drawSky(ctx, X, Y, view, now) {
 
   // the far city, in haze
   ctx.fillStyle = "rgba(118,96,128,0.32)";
-  for (const [x, w, h] of SKYLINE) ctx.fillRect(X(x), Y(h), w * (X(1) - X(0)), Y(0) - Y(h));
+  for (const [x, w, h] of SKYLINE) ctx.fillRect(X(x), Yb(h), w * (X(1) - X(0)), Yb(0) - Yb(h));
   // lit windows, flickering on one by one
   ctx.fillStyle = "rgba(255,230,170,0.55)";
   const t = Math.floor(now / 1400);
@@ -49,18 +56,19 @@ export function drawSky(ctx, X, Y, view, now) {
     for (let k = 0; k < 3; k++) {
       if ((i * 7 + k * 3 + t) % 5 !== 0) continue;
       const wx = X(x + w * (0.25 + 0.25 * k));
-      const wy = Y(h * (0.3 + 0.2 * ((i + k) % 3)));
+      const wy = Yb(h * (0.3 + 0.2 * ((i + k) % 3)));
       ctx.fillRect(wx, wy, 2, 2);
     }
   });
 }
 
-// The foundation, cut through: concrete with the diagonal hatching of a section drawing.
-export function drawGround(ctx, X, Y, view, half, ink) {
+// The foundation, cut through: concrete with the diagonal hatching of a section drawing,
+// from ground level down to `bottom` metres.
+export function drawGround(ctx, X, Y, bottom, half, ink) {
   const x0 = X(-half);
   const y0 = Y(0);
   const w = X(half) - x0;
-  const h = Y(view.yMin) - y0;
+  const h = Y(bottom) - y0;
   ctx.fillStyle = "#d9d1c4";
   ctx.fillRect(x0, y0, w, h);
   ctx.save();
@@ -103,6 +111,7 @@ function waveAt(u, t) {
 
 // The lava itself, drawn over the stack so whatever it has closed over glows through it.
 export function drawLava(ctx, X, Y, view, level, t) {
+  if (level + 0.2 < view.yMin) return; // below the window: drawLavaBelow says where it is
   const left = view.xMin;
   const right = view.xMax;
   const bottom = Y(view.yMin);
@@ -144,6 +153,30 @@ export function drawLava(ctx, X, Y, view, level, t) {
   ctx.strokeStyle = "rgba(255,232,150,0.85)";
   ctx.lineWidth = 1.6;
   ctx.stroke();
+}
+
+// When the view has climbed away from the lava, its heat still shows along the bottom edge,
+// with how far below the climber it is — the threat never leaves the screen.
+export function drawLavaBelow(ctx, X, Y, view, level, feet, mono) {
+  if (level + 0.2 >= view.yMin) return;
+  const bottom = Y(view.yMin);
+  const band = (Y(0) - Y(1)) * 0.9;
+  const g = ctx.createLinearGradient(0, bottom, 0, bottom - band);
+  g.addColorStop(0, "rgba(255,150,60,0.55)");
+  g.addColorStop(1, "rgba(255,150,60,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(X(view.xMin), bottom - band, X(view.xMax) - X(view.xMin), band);
+  const text = `LAVA ↓ ${Math.max(0, feet - level).toFixed(1)} m BELOW`;
+  ctx.font = `bold 11px ${mono}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(120,30,10,0.55)";
+  ctx.lineWidth = 3;
+  const cx = (X(view.xMin) + X(view.xMax)) / 2;
+  ctx.strokeText(text, cx, bottom - 6);
+  ctx.fillStyle = "#fff1d0";
+  ctx.fillText(text, cx, bottom - 6);
 }
 
 // The lava seen from above: it rises out of the floor, so it fades in over the plate as its

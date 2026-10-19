@@ -9,6 +9,7 @@ import { FrameContext } from "@/components/game/frame";
 import GameOverOverlay from "@/components/game/GameOverOverlay";
 import StartOverlay from "@/components/game/StartOverlay";
 import { LAVA_START, SPAWN } from "@/lib/game/constants";
+import * as music from "@/lib/game/music";
 
 const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, time: 0, lava: LAVA_START, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "slab", nextId: "plank" };
 const snap = (s) =>
@@ -47,6 +48,7 @@ export default function Game() {
   const snapRef = useRef("");
   const [engineState, setEngineState] = useState("loading");
   const [stats, setStats] = useState(INITIAL);
+  const [muted, setMuted] = useState(music.isMuted);
 
   const push = useCallback(() => {
     const eng = engineRef.current;
@@ -154,7 +156,24 @@ export default function Game() {
     };
   }, [push]);
 
+  // The song plays only while a run is live: a pause or the game-over screen holds it, and it
+  // speeds up with the run's clock.
+  const live = stats.mode === "play" && !stats.paused && !stats.over;
+  useEffect(() => {
+    if (live) music.play();
+    else music.pause();
+  }, [live]);
+  useEffect(() => {
+    music.setIntensity(stats.time);
+  }, [stats.time]);
+
+  const toggleMute = useCallback(() => {
+    music.setMuted(!muted);
+    setMuted(!muted);
+  }, [muted]);
+
   const startGame = useCallback(() => {
+    music.rewind();
     engineRef.current?.start();
     push();
   }, [push]);
@@ -163,6 +182,7 @@ export default function Game() {
     push();
   }, [push]);
   const restart = useCallback(() => {
+    music.rewind();
     engineRef.current?.restart();
     push();
   }, [push]);
@@ -175,6 +195,8 @@ export default function Game() {
           engineState={engineState}
           onTogglePause={togglePause}
           onRestart={restart}
+          muted={muted}
+          onToggleMute={toggleMute}
         />
   
         <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[1.02fr_1fr] lg:overflow-hidden">

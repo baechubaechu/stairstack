@@ -2,7 +2,7 @@
 // build, so tests use rapier3d-compat — the same Rapier version and wasm, packaged for Node.
 import RAPIER from "@dimforge/rapier3d-compat";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { LAVA_START } from "./constants";
+import { DROP_Y, LAVA_START, VIEW_FOLLOW } from "./constants";
 import { createEngine } from "./engine";
 
 const DT = 1 / 60;
@@ -46,15 +46,26 @@ describe("engine", () => {
     expect(s.mode).toBe("play");
     expect(s.time).toBeCloseTo(1, 1);
     expect(s.score).toBeGreaterThanOrEqual(9);
-    expect(s.lava).toBeGreaterThan(LAVA_START);
+    expect(s.lava).toBe(LAVA_START); // the opening grace: it hasn't moved yet
     run(4);
     expect(engine.stats().members).toBeGreaterThan(5); // the unattended member settled on its own
+    run(2);
+    expect(engine.stats().lava).toBeGreaterThan(LAVA_START); // past LAVA_DELAY it rises
   });
 
   it("drops the member in play on demand", () => {
     engine.start();
     expect(engine.drop()).toBe(true);
     expect(engine.stats().members).toBe(6);
+  });
+
+  it("releases members from higher up once the climber has climbed", () => {
+    engine.start();
+    expect(engine.placement().y).toBeCloseTo(DROP_Y, 5); // a low climber: the usual height
+    engine.character.y = 9; // feet well above VIEW_FOLLOW
+    engine.drop(); // the next member is queued from where the climber is now
+    const rise = 9 - engine.character.hh - VIEW_FOLLOW;
+    expect(engine.placement().y).toBeCloseTo(DROP_Y + rise, 5);
   });
 
   it("holds the whole run still while paused", () => {
@@ -80,7 +91,8 @@ describe("engine", () => {
 
   it("ends the run when the lava reaches the climber", () => {
     engine.start();
-    run(40);
+    engine.preview.x = 4; // stack the members well away from the climber's column
+    run(60);
     const s = engine.stats();
     expect(s.over).toBe(true);
     expect(s.cause).toBe("lava");

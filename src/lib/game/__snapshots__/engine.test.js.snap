@@ -65,7 +65,7 @@ exports[`engine > replays a scripted run identically 1`] = `
     0.45,
   ],
   "face": "front",
-  "lava": -0.611,
+  "lava": -0.978,
   "score": 60,
 }
 `;
