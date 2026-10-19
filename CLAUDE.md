@@ -55,5 +55,5 @@ randomness (embers, dust) is fine there; the engine itself must stay determinist
 ## Supabase (run logs + leaderboard)
 `src/lib/telemetry.js` sends one `runs` row at game over and reads the `leaderboard` / `player_bests` views (one row per anonymous player, keyed by a SHA-256 tag of the browser's random id); schema and RLS in
 `supabase/migrations/` (applied to production by the Supabase GitHub integration on merge to main; or paste into the SQL Editor). Keys come from `.env.local`
-(`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, see `.env.example`); with no keys it silently does nothing.
+(`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, see `.env.example`); with no keys it silently does nothing, and the dev server never logs (`VITE_TELEMETRY_DEV=1` to test it).
 Scores are client-reported, so the board is cheatable — fine for now.

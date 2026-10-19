@@ -5,7 +5,10 @@ import { createClient } from "@supabase/supabase-js";
 
 const URL = import.meta.env.VITE_SUPABASE_URL;
 const KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = URL && KEY ? createClient(URL, KEY, { auth: { persistSession: false } }) : null;
+// The dev server (npm run dev) logs nothing, so testing never lands in the beta data — unless
+// VITE_TELEMETRY_DEV=1 is set to check the logging itself. Only built, deployed copies log runs.
+const OFF_IN_DEV = import.meta.env.DEV && import.meta.env.VITE_TELEMETRY_DEV !== "1";
+const supabase = URL && KEY && !OFF_IN_DEV ? createClient(URL, KEY, { auth: { persistSession: false } }) : null;
 
 export const telemetryEnabled = Boolean(supabase);
 
