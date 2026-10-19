@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { getName, setName, telemetryEnabled } from "@/lib/telemetry";
+import { defaultName, getName, setName, telemetryEnabled } from "@/lib/telemetry";
 import ControlCard from "@/components/game/ControlCard";
 import MouseDiagram from "@/components/game/diagrams/MouseDiagram";
 import KeyboardDiagram from "@/components/game/diagrams/KeyboardDiagram";
@@ -73,7 +73,7 @@ export default function StartOverlay({ engineState, onStart }) {
             data-testid="player-name"
             value={name}
             maxLength={16}
-            placeholder="Nickname for the leaderboard (optional)"
+            placeholder={`Leaderboard nickname (optional — you show up as ${defaultName()})`}
             onChange={(e) => {
               setNameState(e.target.value);
               setName(e.target.value);

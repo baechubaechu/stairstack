@@ -10,6 +10,23 @@ function Row({ label, value, tone }) {
   );
 }
 
+// One player on the board: their rank, name and best score. The viewer's own row is picked out.
+function BoardRow({ row, mine }) {
+  return (
+    <li
+      className={`flex items-baseline gap-2 border-b border-border py-1 font-mono text-[11px] last:border-0 ${mine ? "font-bold text-ochre" : ""}`}
+    >
+      <span className="w-6 text-muted-foreground">{row.rank}</span>
+      <span className="flex-1 truncate">
+        {row.name}
+        {mine ? " (you)" : ""}
+      </span>
+      <span className="text-muted-foreground">{row.runs} runs</span>
+      <span className="w-12 text-right text-amber-700">{row.score}</span>
+    </li>
+  );
+}
+
 export default function GameOverOverlay({ stats, board, onRetry }) {
   const lava = stats.cause === "lava";
   return (
@@ -48,17 +65,16 @@ export default function GameOverOverlay({ stats, board, onRetry }) {
             <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-muted-foreground">Leaderboard</p>
             {board === null ? (
               <p className="py-2 font-mono text-[11px] text-muted-foreground">Loading…</p>
-            ) : board.length === 0 ? (
+            ) : board.top.length === 0 ? (
               <p className="py-2 font-mono text-[11px] text-muted-foreground">No runs yet.</p>
             ) : (
               <ol className="mt-1">
-                {board.map((r, i) => (
-                  <li key={i} className="flex items-baseline gap-2 border-b border-border py-1 font-mono text-[11px] last:border-0">
-                    <span className="w-5 text-muted-foreground">{i + 1}</span>
-                    <span className="flex-1 truncate">{r.name}</span>
-                    <span className="text-amber-700">{r.score}</span>
-                  </li>
+                {board.top.map((r) => (
+                  <BoardRow key={r.tag} row={r} mine={r.tag === board.me?.tag} />
                 ))}
+                {board.me && !board.top.some((r) => r.tag === board.me.tag) ? (
+                  <BoardRow row={board.me} mine />
+                ) : null}
               </ol>
             )}
           </div>
