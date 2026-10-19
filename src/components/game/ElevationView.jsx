@@ -1,30 +1,36 @@
 import { useRef } from "react";
+import {
+  createClimberAnim,
+  createDust,
+  drawClimber,
+  drawDust,
+  puff,
+  stepClimberAnim,
+  stepDust,
+} from "@/components/game/art/climber";
+import { paintMember, shadeUnder } from "@/components/game/art/materials";
+import {
+  createEmbers,
+  drawEmbers,
+  drawGround,
+  drawLava,
+  drawLavaGlow,
+  drawSky,
+  stepEmbers,
+} from "@/components/game/art/scene";
 import { useFrame } from "@/components/game/frame";
 import useCanvasSize from "@/components/game/useCanvasSize";
-import { MONO, roundRect, tracePoly } from "@/lib/game/canvas";
+import { MONO, roundRect } from "@/lib/game/canvas";
 import { CHARACTER, COMPASS, DROP_Y, EDGE_LINE, FACES, GROUND_HALF, LAVA_START } from "@/lib/game/constants";
-import {
-  ACCENT,
-  ACCENT_SOFT,
-  BLOCK,
-  BLOCK_RGB,
-  CLIMBER_GUIDE,
-  FIGURE,
-  GRID,
-  GROUND,
-  INK,
-  INK_SOFT,
-  LAVA,
-  LAVA_DEEP,
-  LAVA_FILL,
-  PAPER,
-  edgeOf,
-} from "@/lib/game/palette";
+import { faceU } from "@/lib/game/elevation";
+import { ACCENT, ACCENT_SOFT, BLOCK, BLOCK_RGB, CLIMBER_GUIDE, INK, INK_SOFT, PAPER } from "@/lib/game/palette";
 
 // Visible elevation window, in metres. It reaches just past the release height, so a
 // dropping member is on screen from the top of its fall.
 const VIEW = { xMin: -6.6, xMax: 6.6, yMin: -1.1, yMax: DROP_Y + 0.1 };
 const SIDES = [-1, 1];
+// The drafting grid, laid faintly over the sky so the sheet still reads as a drawing.
+const SKY_GRID = "rgba(255,255,255,0.22)";
 
 // Ink that stays readable wherever it lands: the lava floods the floor and the axis captions
 // with it, so every label under the surface gets a paper-coloured halo first.
@@ -38,18 +44,39 @@ function haloText(ctx, text, x, y) {
   ctx.fillText(text, x, y);
 }
 
-// ELEVATION — the silhouettes of the same rigid bodies, projected onto the FRONT face.
+// A member landing hard kicks up dust where it struck. Tracked per member by the vertical
+// speed it had last frame: falling fast, then suddenly not, is an impact.
+function memberImpacts(eng, lastVy, dust) {
+  const f = FACES[eng.face];
+  for (const m of eng.members) {
+    const vy = m.body.linvel().y;
+    const prev = lastVy.get(m);
+    lastVy.set(m, vy);
+    if (prev === undefined || prev > -2.5 || vy < -0.6) continue;
+    const t = m.body.translation();
+    puff(dust, faceU(f, [t.x, t.y, t.z]), m.bottom ?? t.y - m.hy, m.hx * 1.6, 10);
+  }
+}
+
+// ELEVATION — the silhouettes of the same rigid bodies, projected onto the face being read,
+// set against the sky with the lava climbing beneath them.
 export default function ElevationView({ engineRef }) {
   const canvasRef = useRef(null);
   const viewRef = useCanvasSize(canvasRef);
+  const fx = useRef(null);
 
-  useFrame(() => {
+  useFrame((dt, now) => {
     const canvas = canvasRef.current;
     const view = viewRef.current;
     if (!canvas || !view) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const { dpr, w, h } = view;
+    if (!fx.current) {
+      fx.current = { embers: createEmbers(), dust: createDust(), anim: createClimberAnim(), lastVy: new WeakMap() };
+    }
+    const { embers, dust, anim, lastVy } = fx.current;
+    const t = now / 1000;
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
@@ -65,6 +92,7 @@ export default function ElevationView({ engineRef }) {
     const Y = (y) => oy + (VIEW.yMax - y) * scale;
 
     const eng = engineRef.current;
+    const live = eng && eng.mode === "play" && !eng.stats().paused;
     // While the elevation turns, the plane collapses to a line and the projection from
     // the side being turned to opens up in its place.
     const turn = eng ? eng.turnView : null;
@@ -74,13 +102,23 @@ export default function ElevationView({ engineRef }) {
         : { id: turn.b, squash: 2 * turn.p - 1 }
       : { id: eng ? eng.face : "front", squash: 1 };
     const proj = eng ? eng.viewFor(shown.id) : null;
+    const lv = eng ? eng.lava : LAVA_START;
+
+    // the effects only move while the run does, so a pause holds them too
+    if (live) {
+      stepEmbers(embers, dt, lv, VIEW);
+      stepDust(dust, dt);
+      if (!turn) memberImpacts(eng, lastVy, dust);
+      const c = eng.character;
+      if (stepClimberAnim(anim, c, dt)) puff(dust, c.x, c.y - c.hh, 0.3, 7);
+    }
 
     // A face the climber could not step onto folds straight back. It takes a jolt and a red
     // wash, the spot that was taken is marked where it sits, and a banner names the face —
     // so the fold-back never reads as a turn that merely changed its mind.
     const info = eng ? eng.turnInfo : null;
     const jolt = info && info.back ? 1 : eng && eng.blockedView ? eng.blockedView.p : 0;
-    const shake = jolt > 0 ? Math.sin(performance.now() / 34) * 5 * jolt : 0;
+    const shake = jolt > 0 ? Math.sin(now / 34) * 5 * jolt : 0;
 
     // everything that belongs to the plane squashes with it — and jolts when it folds back
     const mid = w / 2;
@@ -91,53 +129,30 @@ export default function ElevationView({ engineRef }) {
     ctx.scale(Math.max(0.02, shown.squash), 1);
     ctx.translate(-mid, 0);
 
-    // 1 m grid
-    ctx.strokeStyle = GRID;
+    drawSky(ctx, X, Y, VIEW, now);
+
+    // 1 m grid, faint over the sky
+    ctx.strokeStyle = SKY_GRID;
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let gx = -6; gx <= 6; gx++) {
       ctx.moveTo(X(gx), Y(VIEW.yMax));
-      ctx.lineTo(X(gx), Y(VIEW.yMin));
+      ctx.lineTo(X(gx), Y(0));
     }
-    for (let gy = 0; gy <= 8; gy++) {
+    for (let gy = 1; gy <= 8; gy++) {
       ctx.moveTo(X(VIEW.xMin), Y(gy));
       ctx.lineTo(X(VIEW.xMax), Y(gy));
     }
     ctx.stroke();
 
-    // ground band
-    ctx.fillStyle = GROUND;
-    ctx.fillRect(X(-GROUND_HALF), Y(0), GROUND_HALF * 2 * scale, Y(VIEW.yMin) - Y(0));
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(X(-GROUND_HALF), Y(0));
-    ctx.lineTo(X(GROUND_HALF), Y(0));
-    ctx.stroke();
-
-    // The lava: a band from the foot of the window up to its surface, and it only ever climbs.
-    // It floods the floor first, so the ground visibly goes under before the stack does.
-    const lv = eng ? eng.lava : LAVA_START;
-    const lavaBand = ctx.createLinearGradient(0, Y(lv), 0, Y(VIEW.yMin));
-    lavaBand.addColorStop(0, LAVA_FILL);
-    lavaBand.addColorStop(1, LAVA_DEEP);
-    ctx.fillStyle = lavaBand;
-    ctx.fillRect(X(VIEW.xMin), Y(lv), (VIEW.xMax - VIEW.xMin) * scale, Y(VIEW.yMin) - Y(lv));
-    ctx.fillStyle = LAVA;
-    ctx.fillRect(X(VIEW.xMin), Y(lv) - 1.5, (VIEW.xMax - VIEW.xMin) * scale, 1.5);
-    ctx.font = `bold 10px ${MONO}`;
-    ctx.textAlign = "right";
-    ctx.textBaseline = "bottom";
-    ctx.fillText("LAVA", X(GROUND_HALF) - 4, Y(lv) - 4);
+    drawGround(ctx, X, Y, VIEW, GROUND_HALF, INK);
+    drawLavaGlow(ctx, X, Y, VIEW, lv);
 
     ctx.font = `10px ${MONO}`;
     ctx.fillStyle = INK_SOFT;
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
     for (let gy = 0; gy <= 8; gy += 2) haloText(ctx, `${gy} m`, X(-6) - 4, Y(gy));
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    for (let gx = -6; gx <= 6; gx += 2) haloText(ctx, `${gx}`, X(gx), Y(0) + 5);
 
     // The two lines the view turns on: walk past one and the elevation changes face. Only a
     // walk held out of an end opens the turn, so the line is exactly where that happens.
@@ -163,39 +178,43 @@ export default function ElevationView({ engineRef }) {
     }
 
     if (proj) {
+      // shadows first, so no member's shadow falls across one in front of it
+      for (const sil of proj.sil) shadeUnder(ctx, sil.poly, X, Y, scale);
       // every member keeps its own projected polygon — gaps stay open
       for (const sil of proj.sil) {
-        if (sil.poly.length < 3) continue;
-        tracePoly(ctx, sil.poly, X, Y);
-        ctx.fillStyle = sil.hex;
-        ctx.fill();
         if (sil.gate) {
           // a directional plate reads as one only once the climber's feet have found it:
           // pencilled before that, inked in the accent the moment they have stood on it
-          ctx.setLineDash(sil.active ? [] : [4, 3]);
-          ctx.strokeStyle = sil.active ? ACCENT : INK_SOFT;
-          ctx.lineWidth = sil.active ? 2 : 1.3;
-          ctx.stroke();
-          ctx.setLineDash([]);
+          paintMember(ctx, sil.poly, X, Y, {
+            type: null,
+            hex: sil.hex,
+            scale,
+            outline: sil.active ? ACCENT : INK_SOFT,
+            dash: sil.active ? null : [4, 3],
+          });
         } else {
-          ctx.strokeStyle = edgeOf(sil.hex);
-          ctx.lineWidth = 1.3;
-          ctx.stroke();
+          paintMember(ctx, sil.poly, X, Y, { type: sil.type, hex: sil.hex, screenAngle: -sil.angle, scale });
         }
       }
 
       // the member on its way down — drawn solid, dashed outline while it is in flight
       const act = proj.active;
       if (act && act.poly.length >= 3) {
-        tracePoly(ctx, act.poly, X, Y);
-        ctx.fillStyle = act.hex;
-        ctx.fill();
-        ctx.setLineDash([6, 4]);
-        ctx.strokeStyle = edgeOf(act.hex);
-        ctx.lineWidth = 1.4;
-        ctx.stroke();
-        ctx.setLineDash([]);
+        paintMember(ctx, act.poly, X, Y, { type: act.type, hex: act.hex, screenAngle: -act.angle, scale, dash: [6, 4] });
       }
+    }
+
+    // the lava rolls over whatever it has closed over, and throws embers up the window
+    drawLava(ctx, X, Y, VIEW, lv, t);
+    drawEmbers(ctx, embers, X, Y);
+    ctx.font = `bold 10px ${MONO}`;
+    ctx.fillStyle = "#fff4d6";
+    ctx.textAlign = "right";
+    ctx.textBaseline = "top";
+    ctx.fillText("LAVA", X(GROUND_HALF) - 4, Y(lv) + 6);
+
+    if (proj) {
+      drawDust(ctx, dust, X, Y, scale);
 
       // character height indicator
       const c = eng.character;
@@ -210,25 +229,12 @@ export default function ElevationView({ engineRef }) {
       ctx.stroke();
       ctx.restore();
 
-      const wpx = CHARACTER.w * scale;
-      const hpx = CHARACTER.h * scale;
-      const bx = X(c.x - c.hw);
-      const by = Y(c.y + c.hh);
-      roundRect(ctx, bx, by, wpx, hpx, Math.min(4, wpx * 0.3));
-      ctx.fillStyle = FIGURE;
-      ctx.fill();
-      ctx.strokeStyle = "rgba(18,24,30,0.6)";
-      ctx.lineWidth = 1.2;
-      ctx.stroke();
-      ctx.fillStyle = "rgba(244,241,236,0.9)";
-      ctx.fillRect(bx + wpx * 0.18, by + hpx * 0.16, wpx * 0.64, Math.max(2, hpx * 0.11));
-      ctx.fillStyle = FIGURE;
-      ctx.fillRect(bx - 1.5, by + hpx - 2, wpx + 3, 2);
-      ctx.fillStyle = INK;
+      drawClimber(ctx, X(c.x), Y(c.y - c.hh), scale, CHARACTER.h, anim, !c.grounded);
       ctx.font = `bold 10px ${MONO}`;
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillText(`${feet.toFixed(1)} m`, X(c.x) + wpx * 0.85, Y(c.y + c.hh * 0.2));
+      ctx.fillStyle = INK;
+      haloText(ctx, `${feet.toFixed(1)} m`, X(c.x) + CHARACTER.w * scale * 0.85, Y(c.y + c.hh * 0.2));
     }
 
     // the place the climber would have stepped onto on the face that turned them around —

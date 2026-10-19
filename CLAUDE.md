@@ -27,6 +27,10 @@ Tailwind 3. No backend. Game design notes and history: `CONTEXT.md`. Planned wor
 `src/components/game/` — React UI. `Game.jsx` boots Rapier and owns the single animation loop: each frame
 it steps the engine, then every canvas draws via `useFrame` (`frame.js`). Canvases size themselves with
 `useCanvasSize`. `src/components/ui/button.jsx` is the one shadcn component in use. Alias `@/` → `src/`.
+`src/components/game/art/` — decoration only, never read by the engine: `materials.js` (per-type member
+textures, top-lit shading, contact shadows), `scene.js` (dusk sky, foundation section, lava surface/glow/
+embers, plan-view lava), `climber.js` (the hard-hat figure, its poses, landing dust). Render-side
+randomness (embers, dust) is fine there; the engine itself must stay deterministic.
 
 ## Conventions
 - Rapier: the game ships `@dimforge/rapier3d` (separate .wasm, via `vite-plugin-wasm`); tests use
@@ -34,6 +38,11 @@ it steps the engine, then every canvas draws via `useFrame` (`frame.js`). Canvas
 - `engine.test.js` has a snapshot of a scripted run. Rapier is deterministic, so a refactor must keep it
   identical; when behaviour changes on purpose (tuning, rules), review the diff and run `npx vitest run -u`.
 - No React StrictMode (its dev double-mount would boot a second Rapier world).
+- Dev builds expose the engine as `window.__engine` — e.g. `__engine.step(1/60)` in a loop fast-forwards a
+  run, `__engine.togglePause()` freezes it for a screenshot. A hidden browser pane stops
+  requestAnimationFrame, so the game clock only advances while the page is visible (or when stepped by hand).
+- Vite's file watcher on Windows can miss in-place `sed -i` edits; if the browser runs stale code, restart
+  the dev server.
 - Tailwind `accent` is shadcn's near-white hover tint; for the game's ochre use `ochre` (or `ACCENT` on canvas).
 - Tuning numbers live in `constants.js` (e.g. `ROTATE_STEP_DEG`, `AIM_LIMIT`); UI text reads them from there.
 - Code comments explain the game rule behind the code, in full sentences — keep that style.

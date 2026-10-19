@@ -43,6 +43,7 @@ export default function Game() {
   const engineRef = useRef(null);
   const inputRef = useRef({ left: false, right: false, jump: false });
   const framesRef = useRef(new Set());
+  const loggedRef = useRef(false);
   const snapRef = useRef("");
   const [engineState, setEngineState] = useState("loading");
   const [stats, setStats] = useState(INITIAL);
@@ -71,6 +72,8 @@ export default function Game() {
         if (cancelled) return;
         engine = createEngine(RAPIER, inputRef.current);
         engineRef.current = engine;
+        // dev only: a console handle for poking the run (e.g. __engine.step(0.05) to fast-forward)
+        if (import.meta.env.DEV) window.__engine = engine;
         setEngineState("ready");
         push();
       } catch (err) {
@@ -101,7 +104,15 @@ export default function Game() {
       const dt = Math.min((now - last) / 1000, 0.1);
       last = now;
       engineRef.current?.step(dt);
-      for (const draw of framesRef.current) draw(dt, now);
+      // a canvas that throws must not stop the others drawing, or the HUD updating below
+      for (const draw of framesRef.current) {
+        try {
+          draw(dt, now);
+        } catch (err) {
+          if (!loggedRef.current) console.error("STAIRSTACK: a canvas failed to draw", err);
+          loggedRef.current = true;
+        }
+      }
       acc += dt;
       if (acc > 0.1) {
         acc = 0;

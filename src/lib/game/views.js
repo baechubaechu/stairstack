@@ -1,7 +1,7 @@
 // What both views read: the same rigid bodies projected onto an elevation face (silhouettes)
 // and onto the plan (footprints), plus the climber-expanded silhouettes the climb collides with.
 import { FACES, GROUND_HALF } from "./constants";
-import { boxVertices, faceU, memberVertices } from "./elevation";
+import { boxVertices, faceU, memberVertices, quatToMat3 } from "./elevation";
 import { convexHull, expandForBox, penetration } from "./hull";
 import { placement, quatFromEuler } from "./world";
 
@@ -17,15 +17,35 @@ export function createViews() {
   return { silhouettes: [], plans: [], expanded: [] };
 }
 
+// For drawing only: the direction a member's long side runs on a face, as an angle in that
+// face's (u, y) plane — so a material's grain follows a tilted member instead of the screen.
+// Whichever of the box's two horizontal sides projects longer is the one that reads as "long".
+function grainAngle(m, f) {
+  const R = quatToMat3(m.body.rotation());
+  const xu = faceU(f, [R[0], R[3], R[6]]) * m.hx;
+  const xy = R[3] * m.hx;
+  const zu = faceU(f, [R[2], R[5], R[8]]) * m.hz;
+  const zy = R[5] * m.hz;
+  return Math.hypot(xu, xy) >= Math.hypot(zu, zy) ? Math.atan2(xy, xu) : Math.atan2(zy, zu);
+}
+
 // Members projected onto one face: the face being read drives collision, the other faces
-// are what the elevation shows while it turns.
+// are what the elevation shows while it turns. `type` and `angle` are for drawing only.
 export function project(g, faceId) {
   const f = FACES[faceId];
   const out = [];
   for (const m of g.members) {
     const poly = convexHull(memberVertices(m).map((v) => [faceU(f, v), v[1]]));
     if (poly.length >= 3) {
-      out.push({ hex: m.hex, color: m.color, poly, gate: !!m.gate, active: m.gate ? m.gate.active : false });
+      out.push({
+        hex: m.hex,
+        color: m.color,
+        poly,
+        type: m.type.id,
+        angle: grainAngle(m, f),
+        gate: !!m.gate,
+        active: m.gate ? m.gate.active : false,
+      });
     }
   }
   return out;
@@ -45,7 +65,7 @@ function projectActive(g, faceId) {
     quatFromEuler(0, pl.yaw, 0),
   );
   const poly = convexHull(verts.map((v) => [faceU(f, v), v[1]]));
-  return poly.length >= 3 ? { hex: pl.type.hex, color: pl.type.color, poly } : null;
+  return poly.length >= 3 ? { hex: pl.type.hex, color: pl.type.color, poly, type: pl.type.id, angle: 0 } : null;
 }
 
 // Everything the elevation needs to draw one face.
@@ -75,7 +95,10 @@ export function refresh(g) {
       const at = m.body.translation();
       // a directional plate carries its own way out into the plan
       const gate = m.gate ? { dir: m.gate.dir, active: m.gate.active, x: at.x, z: at.z } : null;
-      views.plans.push({ hex: m.hex, color: m.color, poly: plan, top, gate });
+      // for drawing: the way the member's local X side runs across the plan
+      const R = quatToMat3(m.body.rotation());
+      const angle = Math.atan2(R[6], R[0]);
+      views.plans.push({ hex: m.hex, color: m.color, poly: plan, top, gate, type: m.type.id, angle });
     }
   }
   views.expanded = [GROUND_POLY, ...views.silhouettes.map((s) => s.poly)].map((p) =>

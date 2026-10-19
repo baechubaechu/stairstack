@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useFrame } from "@/components/game/frame";
+import { paintMember } from "@/components/game/art/materials";
+import { drawPlanLava } from "@/components/game/art/scene";
 import drawGate from "@/components/game/drawGate";
 import useCanvasSize from "@/components/game/useCanvasSize";
 import { MONO, tracePoly } from "@/lib/game/canvas";
@@ -78,7 +80,7 @@ export default function PlanView({ engineRef, onDrop }) {
     };
   }, [engineRef, viewRef]);
 
-  useFrame(() => {
+  useFrame((_dt, now) => {
     const canvas = canvasRef.current;
     const v = viewRef.current;
     if (!canvas || !v) return;
@@ -218,6 +220,9 @@ export default function PlanView({ engineRef, onDrop }) {
     const eng = engineRef.current;
     if (!eng) return;
 
+    // once the lava is over the floor, the whole plate is under it — the stack stands in it
+    drawPlanLava(ctx, X, Y, GROUND_HALF, eng.lava, now / 1000);
+
     // footprints, lowest first, so a higher member sits over the ones beneath it
     const stack = [...eng.plans].sort((a, b) => a.top - b.top);
     const k = scale / 52;
@@ -234,17 +239,18 @@ export default function PlanView({ engineRef, onDrop }) {
       ctx.restore();
     }
 
-    // solid, filled footprints — a plate nobody has stood on yet is only pencilled in
+    // solid footprints in their materials — a plate nobody has stood on yet is only pencilled in
     for (const plan of stack) {
       if (plan.poly.length < 3) continue;
-      tracePoly(ctx, plan.poly, X, Y);
       ctx.save();
       if (plan.gate && !plan.gate.active) ctx.globalAlpha = 0.34;
-      ctx.fillStyle = plan.hex;
-      ctx.fill();
-      ctx.strokeStyle = edgeOf(plan.hex);
-      ctx.lineWidth = 1.3;
-      ctx.stroke();
+      paintMember(ctx, plan.poly, X, Y, {
+        type: plan.gate ? null : plan.type,
+        hex: plan.hex,
+        screenAngle: plan.angle,
+        scale,
+        outline: edgeOf(plan.hex),
+      });
       ctx.restore();
     }
 
