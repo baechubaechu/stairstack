@@ -6,8 +6,10 @@ collide and tilt. The same rigid bodies are orthographically projected onto an e
 walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = placing; elevation = climbing.
 
 ## Controls
-- Mouse position: aim X/Z on the top view · Wheel: rotate 15° around Y · Click: drop now
+- Mouse position: aim X/Z on the top view · Wheel: rotate 45° around Y · Click: drop now
 - A/D move, W/Space jump · Hold into an elevation edge 0.1 s: turn to the next face · Esc: pause
+- Jump feel: coyote time, jump buffer, fresh-press only, tap = low hop / hold = full jump, apex hang,
+  heavier fall; running accelerates/decelerates; ledges up to 0.35 m are walked up (step-up).
 - NOW / NEXT piece preview
 
 ## Current game state (as built on Base44, now developed here)
@@ -19,7 +21,8 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
    into fixed basalt ground the tower keeps standing on (basalt deep under the lava and below the view is
    deleted for performance) — they used to vanish, which collapsed the tower and made climbing high
    impossible. Climber touching lava = game over; a member falling onto the climber's head = game over.
-   Score +10/s. Members sink in up to 4× faster over time. The elevation window follows the climber up
+   Score = survival (+10/s) + height (1 point per cm of the best height the climber has *stood* at;
+   jump apexes don't count). Members sink in up to 4× faster over time. The elevation window follows the climber up
    and members are released from its top.
 4. Directional exit plates (all in `src/lib/game/gates.js`, drawn by `components/game/drawGate.js`):
    **wrong implementation, to be rebuilt from scratch.** Treat as a placeholder, not a spec; don't extend it.

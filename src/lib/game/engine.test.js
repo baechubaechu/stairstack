@@ -53,6 +53,18 @@ describe("engine", () => {
     expect(engine.stats().lava).toBeGreaterThan(LAVA_START); // past LAVA_DELAY it rises
   });
 
+  it("scores height only for ground the climber stands on", () => {
+    engine.start();
+    run(0.5);
+    input.jump = true; // a jump on the spot
+    run(0.3);
+    input.jump = false;
+    run(1.5); // back down on the floor
+    const s = engine.stats();
+    expect(s.heightScore).toBeLessThan(10); // the jump's apex earned nothing
+    expect(s.score).toBe(s.timeScore + s.heightScore);
+  });
+
   it("drops the member in play on demand", () => {
     engine.start();
     expect(engine.drop()).toBe(true);
@@ -142,36 +154,5 @@ describe("engine", () => {
     expect(s.members).toBe(5);
     expect(s.face).toBe("front");
   });
-
-  // Refactoring guard: a scripted run must come out the same, body for body. Rapier is
-  // deterministic, so any change here means behaviour changed. If a change is intended
-  // (tuning, new rules), review it and update with `npx vitest run -u`.
-  it("replays a scripted run identically", () => {
-    engine.start();
-    engine.preview.x = 1.5;
-    engine.preview.z = -1;
-    engine.preview.yaw = Math.PI / 6;
-    run(1);
-    engine.drop();
-    input.right = true;
-    run(1.5);
-    input.right = false;
-    input.jump = true;
-    run(0.5);
-    input.jump = false;
-    run(3);
-    const r = (v) => Math.round(v * 1000) / 1000;
-    const bodies = engine.members.map((m) => {
-      const t = m.body.translation();
-      return [m.type.id, r(t.x), r(t.y), r(t.z), m.gate ? m.gate.dir : null];
-    });
-    const s = engine.stats();
-    expect({
-      face: s.face,
-      score: s.score,
-      lava: r(s.lava),
-      climber: [r(engine.character.x), r(engine.character.y)],
-      bodies,
-    }).toMatchSnapshot();
-  });
 });
+// The scripted-run snapshot lives in replay.test.js, in a file of its own: see why there.

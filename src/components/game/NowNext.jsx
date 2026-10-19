@@ -45,7 +45,7 @@ export default function NowNext({ stats }) {
     message = "Paused — the world, the stack, the lava and the member in flight are all holding still.";
     tone = "text-slate-600";
   } else if (playing) {
-    message = `Survive — ${stats.score} points so far. Members arrive faster as it goes on; keep the stack ahead of the lava.`;
+    message = `Survive and climb — ${stats.score} points so far (${stats.timeScore} for time, ${stats.heightScore} for your best height). Members arrive faster as it goes on; keep the stack ahead of the lava.`;
     tone = "text-amber-700";
   }
 

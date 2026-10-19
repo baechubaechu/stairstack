@@ -9,6 +9,7 @@ import {
   LAVA_DELAY,
   LAVA_SPEED,
   LAVA_START,
+  SCORE_PER_METRE,
   SCORE_PER_SECOND,
   STONE,
   VIEW_BOTTOM,
@@ -19,16 +20,29 @@ import { viewRise } from "./world";
 // Every run starts the same way: the clock at zero, and the lava at the foot of the tower.
 export function resetRun(state) {
   state.elapsed = 0;
+  state.best = 0;
+  state.timeScore = 0;
+  state.heightScore = 0;
   state.score = 0;
   state.lava = LAVA_START;
   state.cause = null;
+}
+
+// The height score keeps the best height the climber has stood at — dropping back down never
+// takes points away. (The engine only calls this while they are standing on something.)
+export function reachHeight(state, feet) {
+  if (feet <= state.best) return;
+  state.best = feet;
+  state.heightScore = Math.floor(state.best * SCORE_PER_METRE);
+  state.score = state.timeScore + state.heightScore;
 }
 
 // One frame of the run's own clock: the time, the score it buys, and the lava's climb. Only
 // called while the world is live, so a pause holds the whole run exactly where it stands.
 export function advanceRun(state, dt) {
   state.elapsed += dt;
-  state.score = Math.floor(state.elapsed * SCORE_PER_SECOND);
+  state.timeScore = Math.floor(state.elapsed * SCORE_PER_SECOND);
+  state.score = state.timeScore + state.heightScore;
   // the lava waits out the opening, then rises at a pace that grows from the moment it moved
   const rising = state.elapsed - LAVA_DELAY;
   if (rising > 0) state.lava += (LAVA_SPEED + LAVA_ACCEL * rising) * Math.min(dt, rising);

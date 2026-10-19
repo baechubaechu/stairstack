@@ -45,6 +45,10 @@ export default function GameBar({ stats, engineState, onTogglePause, onRestart, 
           <span className={stat}>
             <span className="text-muted-foreground">SCORE</span>
             <span data-testid="stat-score" className="text-[15px] font-semibold text-amber-700">{stats.score}</span>
+            <span className="text-muted-foreground">
+              = <span data-testid="stat-time-score" className="text-foreground">{stats.timeScore}</span> time +{" "}
+              <span data-testid="stat-height-score" className="text-foreground">{stats.heightScore}</span> height
+            </span>
           </span>
           <span className={stat}>
             <span className="text-muted-foreground">TIME</span>

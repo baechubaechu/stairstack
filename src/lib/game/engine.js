@@ -9,7 +9,7 @@ import { BLOCKED_SECONDS, CHAR_STEP, COMPASS, FACES, LAVA_START, MEMBER_BY_ID, P
 import { charStep, createCharacter, headStrike, respawn } from "./climber";
 import { descend, release, spawnActive } from "./drop";
 import { growGates, seedGate, settleGates, touchGates } from "./gates";
-import { advanceRun, buryDeep, petrify, resetRun } from "./survival";
+import { advanceRun, buryDeep, petrify, reachHeight, resetRun } from "./survival";
 import { advanceTurn, blockedView, turnInfo, turnView } from "./turn";
 import { createViews, refresh, viewFor } from "./views";
 import { addMember, charWorld, clearMembers, createWorld, placement, towerTop } from "./world";
@@ -18,7 +18,10 @@ function createState() {
   return {
     mode: "menu",
     elapsed: 0,
-    score: 0,
+    best: 0, // the highest the climber's feet have been this run
+    timeScore: 0,
+    heightScore: 0,
+    score: 0, // timeScore + heightScore
     lava: LAVA_START,
     cause: null,
     physAcc: 0,
@@ -175,6 +178,8 @@ export function createEngine(RAPIER, input) {
       if (state.charAcc > CHAR_STEP) state.charAcc = 0;
     }
     touchGates(g);
+    // only a height the climber is standing on counts — a jump on the spot earns nothing
+    if (character.grounded) reachHeight(state, character.y - character.hh);
 
     descend(g, dt);
 
@@ -190,6 +195,9 @@ export function createEngine(RAPIER, input) {
       members: g.members.length,
       yaw: g.preview.yaw,
       score: state.score,
+      timeScore: state.timeScore,
+      heightScore: state.heightScore,
+      best: state.best,
       time: state.elapsed,
       lava: state.lava,
       cause: state.cause,

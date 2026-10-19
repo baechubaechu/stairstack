@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`engine > replays a scripted run identically 1`] = `
+exports[`replays a scripted run identically 1`] = `
 {
   "bodies": [
     [
@@ -12,23 +12,23 @@ exports[`engine > replays a scripted run identically 1`] = `
     ],
     [
       "slab",
-      -0.503,
+      -0.504,
       0.147,
       -0.7,
       null,
     ],
     [
       "block",
-      1.886,
-      0.448,
-      0.404,
+      1.885,
+      0.447,
+      0.402,
       null,
     ],
     [
       "plank",
-      0.951,
-      1.005,
-      0.912,
+      0.949,
+      1.004,
+      0.914,
       null,
     ],
     [
@@ -40,32 +40,34 @@ exports[`engine > replays a scripted run identically 1`] = `
     ],
     [
       "slab",
-      1.453,
-      0.737,
-      -1.075,
+      1.455,
+      0.736,
+      -1.081,
       null,
     ],
     [
       undefined,
       0.927,
       1.268,
-      0.899,
+      0.903,
       "W",
     ],
     [
       "block",
-      1.407,
-      1.189,
-      -1.479,
+      1.397,
+      1.225,
+      -1.423,
       null,
     ],
   ],
   "climber": [
-    -4.65,
+    3.585,
     0.45,
   ],
   "face": "front",
+  "heightScore": 178,
   "lava": -0.978,
-  "score": 60,
+  "score": 238,
+  "timeScore": 60,
 }
 `;

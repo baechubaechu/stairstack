@@ -11,7 +11,7 @@ import StartOverlay from "@/components/game/StartOverlay";
 import { LAVA_START, SPAWN } from "@/lib/game/constants";
 import * as music from "@/lib/game/music";
 
-const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, time: 0, lava: LAVA_START, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "slab", nextId: "plank" };
+const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, timeScore: 0, heightScore: 0, best: 0, time: 0, lava: LAVA_START, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "slab", nextId: "plank" };
 const snap = (s) =>
   `${s.score}|${s.time.toFixed(1)}|${s.lava.toFixed(2)}|${s.members}|${s.top.toFixed(1)}|${s.x.toFixed(2)}|${s.yaw.toFixed(3)}|${s.cause}|${s.mode}|${s.paused}|${s.face}|${s.nowId}|${s.nextId}`;
 

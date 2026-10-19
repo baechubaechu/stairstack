@@ -20,7 +20,7 @@ export const GROUND_HALF = 6;
 // Placement on the plan: the member's centre stays this far inside the curbs, and each wheel
 // notch turns it this many degrees.
 export const AIM_LIMIT = 5.4;
-export const ROTATE_STEP_DEG = 15;
+export const ROTATE_STEP_DEG = 45;
 
 // Endless survival: the run is scored by how long it lasts, and the floor is giving way.
 // The lava surfaces under the floor line, floods the ground first, then climbs the stack.
@@ -34,7 +34,10 @@ export const LAVA_START = -1;
 export const LAVA_DELAY = 5; // s before the lava starts to rise at all
 export const LAVA_SPEED = 0.02; // m/s it rises once it starts
 export const LAVA_ACCEL = 0.0012; // m/s² — and it keeps gaining
+// The score is two scores added up: time survived, and the best height the climber's feet have
+// reached this run — so lasting and climbing both count.
 export const SCORE_PER_SECOND = 10; // survival score: a point every tenth of a second
+export const SCORE_PER_METRE = 100; // height score: a point per centimetre of best height
 
 // What a swallowed member becomes, and when it can go: basalt deeper than BURY_DEPTH under the
 // lava that has also dropped out of the bottom of the elevation window is removed outright —
@@ -85,6 +88,31 @@ export const MOVE_SPEED = 6.3;
 export const JUMP_V = 11.2;
 export const MEMBER_GRAVITY = -18;
 export const SPAWN = { x: -5, y: 0.46 };
+
+// Jump forgiveness. A jump still counts for COYOTE_TIME after the climber's feet leave an edge,
+// and a press up to JUMP_BUFFER before landing fires the moment they touch down. Only a fresh
+// press jumps — holding the key doesn't bounce the climber along.
+export const COYOTE_TIME = 0.1;
+export const JUMP_BUFFER = 0.12;
+// Jump shape. Letting go early cuts the rise (a tap is a hop, a hold is a full jump); near the
+// top of a held jump gravity eases off so the apex hangs a moment; and the fall comes down
+// harder than the rise, so a jump reads crisp rather than floaty.
+export const JUMP_CUT = 0.45; // share of upward speed kept when the key is released mid-rise
+export const APEX_BAND = 1.6; // m/s: below this vertical speed, a held jump is "at the top"
+export const APEX_GRAVITY = 0.55; // × gravity while hanging at the top
+export const FALL_GRAVITY = 1.45; // × gravity on the way down
+export const MAX_FALL = 26; // m/s
+// Running ramps up and down instead of snapping: full speed in about a tenth of a second on
+// the ground, a little looser in the air so a jump can still be steered.
+export const RUN_ACCEL = 60; // m/s² toward the held direction, on the ground
+export const RUN_DECEL = 80; // m/s² to a stop with no key held, on the ground
+export const AIR_ACCEL = 38;
+export const AIR_DECEL = 20;
+// Walking into a low ledge steps up onto it without a jump: anything up to STEP_UP above the
+// feet (a slab or a plank lying flat), searched in STEP_PROBE increments. Taller members — a
+// step on edge, a block — still need a jump.
+export const STEP_UP = 0.35;
+export const STEP_PROBE = 0.02;
 
 export const PHYS_STEP = 1 / 60;
 export const CHAR_STEP = 1 / 120;

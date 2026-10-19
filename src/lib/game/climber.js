@@ -1,7 +1,29 @@
 // The climber. They are deliberately NOT in the physics world: they walk straight through a
 // stack without shifting a single member. A member coming down on their head is judged by our
 // own geometry (headStrike), and the climb by a sweep against the expanded silhouettes.
-import { CHAR_GRAVITY, CHARACTER, EDGE_DWELL, EDGE_LINE, FACES, JUMP_V, MOVE_SPEED, SPAWN } from "./constants";
+import {
+  AIR_ACCEL,
+  AIR_DECEL,
+  APEX_BAND,
+  APEX_GRAVITY,
+  CHAR_GRAVITY,
+  CHARACTER,
+  COYOTE_TIME,
+  EDGE_DWELL,
+  EDGE_LINE,
+  FACES,
+  FALL_GRAVITY,
+  JUMP_BUFFER,
+  JUMP_CUT,
+  JUMP_V,
+  MAX_FALL,
+  MOVE_SPEED,
+  RUN_ACCEL,
+  RUN_DECEL,
+  SPAWN,
+  STEP_PROBE,
+  STEP_UP,
+} from "./constants";
 import { isFreshGate } from "./gates";
 import { penetration } from "./hull";
 import { beginTurn } from "./turn";
@@ -18,7 +40,11 @@ const COLUMN_GRACE = 0.03;
 export function createCharacter() {
   // `x` is the screen-x (u) of the climber on the face being read — the elevation draws them
   // straight from it, whichever side of the tower that is.
-  return { x: SPAWN.x, y: SPAWN.y, vx: 0, vy: 0, grounded: false, hw: CHARACTER.w / 2, hh: CHARACTER.h / 2 };
+  // `airTime` (coyote clock), `jumpBuffer`, `jumpHeld` and `rising` carry the jump's timing
+  // from one step to the next.
+  const c = { hw: CHARACTER.w / 2, hh: CHARACTER.h / 2, grounded: false };
+  respawn(c);
+  return c;
 }
 
 export function respawn(character) {
@@ -26,6 +52,10 @@ export function respawn(character) {
   character.y = SPAWN.y;
   character.vx = 0;
   character.vy = 0;
+  character.airTime = 0;
+  character.jumpBuffer = 0;
+  character.jumpHeld = false;
+  character.rising = false;
 }
 
 // A member that descends through the climber's head plane while over its column ends the run.
@@ -74,26 +104,87 @@ function resolveContact(g) {
   }
 }
 
+const approach = (v, target, maxStep) => v + clamp(target - v, -maxStep, maxStep);
+
+// Does the climber overlap anything at this point (beyond resting contact)?
+function overlaps(g, x, y) {
+  for (const poly of g.views.expanded) {
+    const pen = penetration(poly, x, y);
+    if (pen && pen.dist >= SEPARATION) return true;
+  }
+  return false;
+}
+
+// Is a wall facing the climber pressing them back at this point? Any one contact counts: the
+// floor they are walking on overlaps too, and must not hide the ledge in front of them.
+function wallAhead(g, x, y, dir) {
+  for (const poly of g.views.expanded) {
+    const pen = penetration(poly, x, y);
+    if (pen && pen.dist >= SEPARATION && Math.abs(pen.nx) > 0.7 && pen.nx * dir < 0) return true;
+  }
+  return false;
+}
+
+// Walking into a low ledge: if a wall stopped the climber and there is room to stand within
+// STEP_UP above where they were, lift them onto it — the sweep then settles them on its top.
+function stepUp(g, dir, fromY) {
+  const c = g.character;
+  if (!wallAhead(g, c.x, c.y, dir)) return;
+  for (let lift = STEP_PROBE; lift <= STEP_UP + 1e-9; lift += STEP_PROBE) {
+    if (overlaps(g, c.x, fromY + lift)) continue;
+    c.y = fromY + lift;
+    return;
+  }
+}
+
 // One fixed climber step: input, gravity, the collision sweep, and walking out of an end.
 export function charStep(g, h) {
-  const { character, input, state } = g;
+  const { character: c, input, state } = g;
   let dir = 0;
   if (input.left) dir -= 1;
   if (input.right) dir += 1;
-  if (input.jump && character.grounded) {
-    character.vy = JUMP_V;
-    character.grounded = false;
-  }
-  character.vx = dir * MOVE_SPEED;
-  character.vy = Math.max(-26, character.vy + CHAR_GRAVITY * h);
-  character.grounded = false;
 
-  const dx = character.vx * h;
-  const dy = character.vy * h;
+  // `grounded` still says whether last step's sweep found a floor. Time since then is the
+  // coyote clock; a fresh press of the jump key starts the buffer clock.
+  c.airTime = c.grounded ? 0 : c.airTime + h;
+  const pressed = input.jump && !c.jumpHeld;
+  c.jumpHeld = input.jump;
+  c.jumpBuffer = pressed ? JUMP_BUFFER : Math.max(0, c.jumpBuffer - h);
+  if (c.jumpBuffer > 0 && c.airTime <= COYOTE_TIME) {
+    c.vy = JUMP_V;
+    c.jumpBuffer = 0;
+    c.airTime = Infinity; // one jump per take-off: the coyote window is spent
+    c.rising = true;
+  }
+  // letting go mid-rise cuts the jump short
+  if (c.rising && !input.jump && c.vy > 0) {
+    c.vy *= JUMP_CUT;
+    c.rising = false;
+  }
+  if (c.vy <= 0) c.rising = false;
+
+  // run toward the held direction — quicker on the ground than in the air
+  const onGround = c.airTime === 0;
+  const rate = dir !== 0 ? (onGround ? RUN_ACCEL : AIR_ACCEL) : onGround ? RUN_DECEL : AIR_DECEL;
+  c.vx = approach(c.vx, dir * MOVE_SPEED, rate * h);
+
+  // gravity eases at the top of a held jump and bites harder on the way down
+  let gravity = CHAR_GRAVITY;
+  if (input.jump && Math.abs(c.vy) < APEX_BAND && !onGround) gravity *= APEX_GRAVITY;
+  else if (c.vy < 0) gravity *= FALL_GRAVITY;
+  c.vy = Math.max(-MAX_FALL, c.vy + gravity * h);
+  c.grounded = false;
+
+  const dx = c.vx * h;
+  const dy = c.vy * h;
   const sub = clamp(Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / 0.05), 1, 6);
+  // only a climber walking along a floor steps up — never one in the air or on the way up
+  const canStep = onGround && dir !== 0 && c.vy <= 0;
   for (let i = 0; i < sub; i++) {
-    character.x += dx / sub;
-    character.y += dy / sub;
+    const fromY = c.y;
+    c.x += dx / sub;
+    c.y += dy / sub;
+    if (canStep) stepUp(g, dir, fromY);
     resolveContact(g);
   }
 
@@ -102,16 +193,16 @@ export function charStep(g, h) {
   // Walking up to the edge, sliding into it, or being shoved past it by a landing member
   // therefore can never turn the world by itself.
   const limit = EDGE_LINE;
-  if (character.x > limit) character.x = limit;
-  else if (character.x < -limit) character.x = -limit;
-  const push = character.x >= limit - 0.001 && dir > 0 ? 1 : character.x <= -limit + 0.001 && dir < 0 ? -1 : 0;
+  if (c.x > limit) c.x = limit;
+  else if (c.x < -limit) c.x = -limit;
+  const push = c.x >= limit - 0.001 && dir > 0 ? 1 : c.x <= -limit + 0.001 && dir < 0 ? -1 : 0;
   state.edgeHold = push === 0 ? 0 : state.edgeHold + h;
   if (push === 1 && state.edgeHold >= EDGE_DWELL && state.blockedDir !== 1) {
     beginTurn(g, FACES[state.face].right, -limit);
   } else if (push === -1 && state.edgeHold >= EDGE_DWELL && state.blockedDir !== -1) {
     beginTurn(g, FACES[state.face].left, limit);
-  } else if (push === 0 && Math.abs(character.x) < limit - 0.8) {
+  } else if (push === 0 && Math.abs(c.x) < limit - 0.8) {
     state.blockedDir = 0; // well clear of the ends — either one can be tried again
   }
-  if (character.y < -1.5) respawn(character);
+  if (c.y < -1.5) respawn(c);
 }

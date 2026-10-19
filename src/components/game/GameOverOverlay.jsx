@@ -35,7 +35,8 @@ export default function GameOverOverlay({ stats, onRetry }) {
         </div>
 
         <div className="mt-2">
-          <Row label="Survived" value={`${stats.time.toFixed(1)} s`} tone="text-foreground" />
+          <Row label="Survival score" value={`${stats.timeScore}  ·  ${stats.time.toFixed(1)} s`} tone="text-foreground" />
+          <Row label="Height score" value={`${stats.heightScore}  ·  best ${stats.best.toFixed(2)} m`} tone="text-amber-700" />
           <Row label="Members placed" value={stats.members} tone="text-foreground" />
           <Row label="Stack top" value={`${stats.top.toFixed(1)} m`} tone="text-amber-700" />
           <Row label="Lava height" value={`${stats.lava.toFixed(1)} m`} tone="text-rose-600" />
