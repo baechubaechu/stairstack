@@ -24,6 +24,7 @@ export function release(g) {
     z: (Math.random() - 0.5) * 0.03,
   });
   g.state.active = null;
+  g.state.dropped += 1;
   spawnActive(g);
   refresh(g);
   return true;

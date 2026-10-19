@@ -24,8 +24,12 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
    Score = survival (+10/s) + height (1 point per cm of the best height the climber has *stood* at;
    jump apexes don't count). Members sink in up to 4× faster over time. The elevation window follows the climber up
    and members are released from its top.
-4. Directional exit plates (all in `src/lib/game/gates.js`, drawn by `components/game/drawGate.js`):
-   **wrong implementation, to be rebuilt from scratch.** Treat as a placeholder, not a spec; don't extend it.
+4. Floor slabs (`src/lib/game/floors.js`) — replaced the old directional plates. A concrete slab covers
+   the plan except a 1.8 m gap strip along one edge: from the two faces looking along that edge it is a
+   wall-to-wall ceiling the climber can't jump through; from the other two the gap shows, the only way
+   up. Pencilled (translucent, no collider — dropped members fall through) until the climber stands on
+   it, then solid ground; the next storey appears 6 m higher, gap hidden from the face they're on.
+   First storey at 6.5 m. This is what forces turning the tower.
 
 ## Design history (why things are the way they are)
 - Problem: stacking on one side forms an easy staircase. Problem: you could clear without ever turning the

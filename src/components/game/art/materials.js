@@ -152,7 +152,24 @@ function basalt(c) {
   }
 }
 
-const PAINTERS = { slab: timber, plank: terracotta, block: glass, step: stone, beam: steel, basalt };
+// Cast concrete: a floor slab — fine aggregate speckle and the faint grid of its formwork panels.
+function concrete(c) {
+  const r = rng(53);
+  for (let i = 0; i < 70; i++) {
+    c.fillStyle = `rgba(${r() > 0.5 ? "255,255,255" : "70,62,52"},${(0.06 + r() * 0.08).toFixed(2)})`;
+    c.fillRect(r() * TILE, r() * TILE, 1 + r() * 1.5, 1 + r() * 1.5);
+  }
+  c.strokeStyle = "rgba(90,80,66,0.18)";
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(0, 0.5);
+  c.lineTo(TILE, 0.5);
+  c.moveTo(0.5, 0);
+  c.lineTo(0.5, TILE);
+  c.stroke();
+}
+
+const PAINTERS = { slab: timber, plank: terracotta, block: glass, step: stone, beam: steel, basalt, floor: concrete };
 
 // One texture tile per type, painted once and shared by every canvas.
 const tiles = new Map();

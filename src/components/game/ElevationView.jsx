@@ -220,20 +220,18 @@ export default function ElevationView({ engineRef }) {
     }
 
     if (proj) {
-      // shadows first, so no member's shadow falls across one in front of it
-      for (const sil of proj.sil) shadeUnder(ctx, sil.poly, X, Y, scale);
+      // shadows first, so no member's shadow falls across one in front of it (a pencilled floor
+      // slab isn't solid yet, so it throws none)
+      for (const sil of proj.sil) if (!(sil.floor && !sil.active)) shadeUnder(ctx, sil.poly, X, Y, scale);
       // every member keeps its own projected polygon — gaps stay open
       for (const sil of proj.sil) {
-        if (sil.gate) {
-          // a directional plate reads as one only once the climber's feet have found it:
-          // pencilled before that, inked in the accent the moment they have stood on it
-          paintMember(ctx, sil.poly, X, Y, {
-            type: null,
-            hex: sil.hex,
-            scale,
-            outline: sil.active ? ACCENT : INK_SOFT,
-            dash: sil.active ? null : [4, 3],
-          });
+        if (sil.floor && !sil.active) {
+          // a floor slab nobody has stood on yet is pencilled in: faint, with a dashed edge,
+          // so what falls through it and what stands under it still read
+          ctx.save();
+          ctx.globalAlpha = 0.38;
+          paintMember(ctx, sil.poly, X, Y, { type: sil.type, hex: sil.hex, scale, outline: INK_SOFT, dash: [6, 4] });
+          ctx.restore();
         } else {
           paintMember(ctx, sil.poly, X, Y, { type: sil.type, hex: sil.hex, screenAngle: -sil.angle, scale });
         }

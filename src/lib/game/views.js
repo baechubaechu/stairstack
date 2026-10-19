@@ -49,8 +49,9 @@ export function project(g, faceId) {
         poly,
         type: m.type.id,
         angle: grainAngle(m, f),
-        gate: !!m.gate,
-        active: m.gate ? m.gate.active : false,
+        // a floor slab is drawn pencilled until the climber has stood on it
+        floor: !!m.floor,
+        active: m.floor ? m.floor.active : false,
       });
     }
   }
@@ -97,7 +98,7 @@ export function refresh(g) {
       // basalt keeps the footprint it set with
       m.stone.plan ??= convexHull(m.stone.verts.map((v) => [v[0], v[2]]));
       if (m.stone.plan.length >= 3) {
-        views.plans.push({ hex: m.hex, color: m.color, poly: m.stone.plan, top: m.stone.top, gate: null, type: "basalt", angle: 0, stone: true });
+        views.plans.push({ hex: m.hex, color: m.color, poly: m.stone.plan, top: m.stone.top, type: "basalt", angle: 0, stone: true });
       }
       continue;
     }
@@ -106,13 +107,11 @@ export function refresh(g) {
     if (plan.length >= 3) {
       let top = 0;
       for (const v of verts) if (v[1] > top) top = v[1];
-      const at = m.body.translation();
-      // a directional plate carries its own way out into the plan
-      const gate = m.gate ? { dir: m.gate.dir, active: m.gate.active, x: at.x, z: at.z } : null;
       // for drawing: the way the member's local X side runs across the plan
       const R = quatToMat3(m.body.rotation());
       const angle = Math.atan2(R[6], R[0]);
-      views.plans.push({ hex: m.hex, color: m.color, poly: plan, top, gate, type: m.type.id, angle });
+      const floor = m.floor ? { active: m.floor.active } : null;
+      views.plans.push({ hex: m.hex, color: m.color, poly: plan, top, floor, type: m.type.id, angle });
     }
   }
   // basalt lies wholly under the lava, where the climber can never stand, so it is left out

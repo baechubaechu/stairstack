@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { useFrame } from "@/components/game/frame";
 import { paintMember } from "@/components/game/art/materials";
 import { drawPlanLava } from "@/components/game/art/scene";
-import drawGate from "@/components/game/drawGate";
 import useCanvasSize from "@/components/game/useCanvasSize";
 import { MONO, tracePoly } from "@/lib/game/canvas";
 import { AIM_LIMIT, FACES, GROUND_HALF, ROTATE_STEP_DEG } from "@/lib/game/constants";
@@ -234,9 +233,10 @@ export default function PlanView({ engineRef, onDrop }) {
     // once the lava is over the floor, the whole plate is under it — the stack stands in it
     drawPlanLava(ctx, X, Y, GROUND_HALF, eng.lava, now / 1000);
 
-    // shadows — the higher the member, the further its shadow reaches
+    // shadows — the higher the member, the further its shadow reaches (a floor slab spans the
+    // whole plan, so it throws none)
     for (const plan of stack) {
-      if (plan.poly.length < 3) continue;
+      if (plan.poly.length < 3 || plan.floor) continue;
       const off = 2.5 + 3.6 * plan.top;
       ctx.save();
       ctx.translate(off * k, (off + 1.6) * k);
@@ -246,23 +246,23 @@ export default function PlanView({ engineRef, onDrop }) {
       ctx.restore();
     }
 
-    // solid footprints in their materials — a plate nobody has stood on yet is only pencilled in
+    // solid footprints in their materials — a floor slab nobody has stood on yet is only
+    // pencilled in, faint enough that the stack under it still reads through it
     for (const plan of stack) {
       if (plan.poly.length < 3) continue;
+      const pencilled = plan.floor && !plan.floor.active;
       ctx.save();
-      if (plan.gate && !plan.gate.active) ctx.globalAlpha = 0.34;
+      if (pencilled) ctx.globalAlpha = 0.28;
       paintMember(ctx, plan.poly, X, Y, {
-        type: plan.gate ? null : plan.type,
+        type: plan.type,
         hex: plan.hex,
         screenAngle: plan.angle,
         scale,
         outline: edgeOf(plan.hex),
+        dash: pencilled ? [6, 4] : null,
       });
       ctx.restore();
     }
-
-    // and every plate on the tower spells out which way it lets the climber out
-    for (const plan of stack) if (plan.gate) drawGate(ctx, plan, X, Y);
 
     // the climber's column on the view being read — a wall that crosses the whole plate,
     // so the marker runs the full way across whichever axis that view measures

@@ -93,7 +93,10 @@ export function memberTop(m) {
 // The highest point of the stack — the frontier the climb, the plates and the stats all read.
 export function towerTop(g) {
   let top = 0;
-  for (const m of g.members) for (const v of memberVertices(m)) if (v[1] > top) top = v[1];
+  for (const m of g.members) {
+    if (m.floor && !m.floor.active) continue; // a pencilled slab isn't part of the stack yet
+    for (const v of memberVertices(m)) if (v[1] > top) top = v[1];
+  }
   return top;
 }
 
@@ -104,6 +107,7 @@ export function topUnder(g, x, z, type, bottomY) {
   let top = 0;
   const reach = Math.hypot(type.w / 2, type.d / 2) + 0.25;
   for (const m of g.members) {
+    if (m.floor && !m.floor.active) continue; // members fall straight through a pencilled slab
     const t = m.body.translation();
     if (t.y >= bottomY) continue;
     if (m.body.linvel().y < FALLING) continue;
@@ -116,9 +120,10 @@ export function topUnder(g, x, z, type, bottomY) {
   return top;
 }
 
-// The type of the member that comes after `members.length` have been placed.
-export function nextType(g) {
-  return MEMBER_BY_ID[SEQUENCE[g.members.length % SEQUENCE.length]];
+// The type of the next member to drop: the drop order, counted by how many have been dropped
+// this run (floors, the starter stack and buried basalt don't shift it).
+export function nextType(g, ahead = 0) {
+  return MEMBER_BY_ID[SEQUENCE[(g.state.dropped + ahead) % SEQUENCE.length]];
 }
 
 // How far the elevation window has climbed to follow the climber (see VIEW_FOLLOW).

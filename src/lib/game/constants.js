@@ -137,4 +137,10 @@ export const FACES = {
   left: { label: "LEFT", compass: "W", axis: "z", sign: 1, right: "front", left: "back" },
 };
 
-// Directional plates (GATE*) live in gates.js with the rest of that placeholder mechanic.
+// Floor slabs (see floors.js): the first storey's underside sits at FLOOR_FIRST, each next one
+// FLOOR_STOREY above the top of the last one stood on, each with a FLOOR_GAP-wide strip left
+// open along one edge — the only way up past it.
+export const FLOOR = { id: "floor", label: "Floor", h: 0.3, color: 0xcfc8bc, hex: "#cfc8bc" };
+export const FLOOR_FIRST = 6.5;
+export const FLOOR_STOREY = 6;
+export const FLOOR_GAP = 1.8;

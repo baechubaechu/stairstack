@@ -8,7 +8,7 @@
 import { BLOCKED_SECONDS, CHAR_STEP, COMPASS, FACES, LAVA_START, MEMBER_BY_ID, PHYS_STEP, SEQUENCE } from "./constants";
 import { charStep, createCharacter, headStrike, respawn } from "./climber";
 import { descend, release, spawnActive } from "./drop";
-import { growGates, seedGate, settleGates, touchGates } from "./gates";
+import { seedFloor, stepFloors } from "./floors";
 import { advanceRun, buryDeep, petrify, reachHeight, resetRun } from "./survival";
 import { advanceTurn, blockedView, turnInfo, turnView } from "./turn";
 import { createViews, refresh, viewFor } from "./views";
@@ -34,8 +34,8 @@ function createState() {
     edgeHold: 0,
     blockedFace: null,
     blockedPulse: 0,
-    gateCursor: 0, // how far round the compass the plates have got — each one takes the next side
-    gateAt: 0, // the climb height the last plate was grown at
+    dropped: 0, // members dropped this run — picks the next one from the drop order
+    floors: 0, // floor slabs stood on this run
   };
 }
 
@@ -57,7 +57,7 @@ export function createEngine(RAPIER, input) {
     addMember(g, MEMBER_BY_ID.slab, -0.5, 0.16, -0.7, { x: 0, y: 0.22, z: 0 });
     addMember(g, MEMBER_BY_ID.block, 1.9, 0.46, 0.4, { x: 0, y: -0.15, z: 0 });
     addMember(g, MEMBER_BY_ID.plank, 1.0, 1.15, 0.9, { x: 0, y: -0.5, z: 0.16 });
-    seedGate(g);
+    seedFloor(g);
     refresh(g);
   }
 
@@ -85,7 +85,6 @@ export function createEngine(RAPIER, input) {
     state.physAcc = 0;
     state.charAcc = 0;
     resetRun(state);
-    state.gateAt = towerTop(g);
     character.vx = 0;
     character.vy = 0;
     spawnActive(g);
@@ -95,7 +94,7 @@ export function createEngine(RAPIER, input) {
   function restart() {
     clearMembers(g);
     state.physAcc = 0;
-    state.gateCursor = 0; // the compass cycle starts over with every run
+    state.face = "front"; // the first storey's gap is hidden from the face a run opens on
     resetRun(state);
     seedStarter();
     resetCharacter();
@@ -148,14 +147,10 @@ export function createEngine(RAPIER, input) {
     }
     if (state.physAcc > PHYS_STEP) state.physAcc = 0;
 
-    settleGates(g, dt);
-
     // Anything the lava has closed over completely sets into basalt ground, and basalt buried
     // deep out of sight is cleared away.
     petrify(g);
     buryDeep(g);
-
-    growGates(g);
 
     refresh(g);
     if (struck) {
@@ -177,7 +172,8 @@ export function createEngine(RAPIER, input) {
       }
       if (state.charAcc > CHAR_STEP) state.charAcc = 0;
     }
-    touchGates(g);
+    // standing on a pencilled floor slab makes it real — and lays the next storey above
+    if (stepFloors(g)) refresh(g);
     // only a height the climber is standing on counts — a jump on the spot earns nothing
     if (character.grounded) reachHeight(state, character.y - character.hh);
 
@@ -188,11 +184,12 @@ export function createEngine(RAPIER, input) {
   }
 
   function stats() {
-    const i = g.members.length % SEQUENCE.length;
+    const i = state.dropped % SEQUENCE.length;
     return {
       x: character.x,
       top: towerTop(g),
-      members: g.members.length,
+      members: g.members.filter((m) => !m.floor).length,
+      floors: state.floors,
       yaw: g.preview.yaw,
       score: state.score,
       timeScore: state.timeScore,

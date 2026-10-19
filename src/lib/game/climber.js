@@ -24,7 +24,6 @@ import {
   STEP_PROBE,
   STEP_UP,
 } from "./constants";
-import { isFreshGate } from "./gates";
 import { penetration } from "./hull";
 import { beginTurn } from "./turn";
 import { extent } from "./world";
@@ -65,7 +64,7 @@ export function headStrike(g) {
   const { character } = g;
   const headTop = character.y + character.hh;
   for (const m of g.members) {
-    if (isFreshGate(m) || m.stone) continue; // basalt is fixed: it can't come down on anyone
+    if (m.stone || m.floor) continue; // basalt and floor slabs are fixed: they can't come down on anyone
     const e = extent(g, m);
     const prev = m.bottom ?? e.bottom;
     m.bottom = e.bottom;

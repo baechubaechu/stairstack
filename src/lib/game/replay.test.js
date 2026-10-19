@@ -42,7 +42,7 @@ it("replays a scripted run identically", () => {
   const r = (v) => Math.round(v * 1000) / 1000;
   const bodies = engine.members.map((m) => {
     const t = m.body.translation();
-    return [m.type.id, r(t.x), r(t.y), r(t.z), m.gate ? m.gate.dir : null];
+    return [m.type.id, r(t.x), r(t.y), r(t.z), m.floor ? m.floor.active : null];
   });
   const s = engine.stats();
   expect({

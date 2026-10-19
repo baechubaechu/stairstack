@@ -30,10 +30,11 @@ function run(seconds) {
 }
 
 describe("engine", () => {
-  it("opens on the menu with the starter stack and one plate", () => {
+  it("opens on the menu with the starter stack and the first floor slab above it", () => {
     const s = engine.stats();
     expect(s.mode).toBe("menu");
-    expect(s.members).toBe(5);
+    expect(s.members).toBe(4); // floor slabs aren't counted as placed members
+    expect(engine.members.filter((m) => m.floor)).toHaveLength(1);
     expect(s.face).toBe("front");
     run(1);
     expect(engine.stats().time).toBe(0); // nothing runs before Game Start
@@ -48,7 +49,7 @@ describe("engine", () => {
     expect(s.score).toBeGreaterThanOrEqual(9);
     expect(s.lava).toBe(LAVA_START); // the opening grace: it hasn't moved yet
     run(4);
-    expect(engine.stats().members).toBeGreaterThan(5); // the unattended member settled on its own
+    expect(engine.stats().members).toBeGreaterThan(4); // the unattended member settled on its own
     run(2);
     expect(engine.stats().lava).toBeGreaterThan(LAVA_START); // past LAVA_DELAY it rises
   });
@@ -68,7 +69,7 @@ describe("engine", () => {
   it("drops the member in play on demand", () => {
     engine.start();
     expect(engine.drop()).toBe(true);
-    expect(engine.stats().members).toBe(6);
+    expect(engine.stats().members).toBe(5);
   });
 
   it("releases members from higher up once the climber has climbed", () => {
@@ -151,7 +152,7 @@ describe("engine", () => {
     const s = engine.stats();
     expect(s.mode).toBe("play");
     expect(s.time).toBe(0);
-    expect(s.members).toBe(5);
+    expect(s.members).toBe(4);
     expect(s.face).toBe("front");
   });
 });
