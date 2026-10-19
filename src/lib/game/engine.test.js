@@ -14,7 +14,7 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  // release() tilts each member by a hair of random; pin it so runs repeat exactly
+  // the engine draws no randomness now (members drop square), but pin it so runs repeat exactly regardless
   vi.spyOn(Math, "random").mockReturnValue(0.5);
   input = { left: false, right: false, jump: false };
   engine = createEngine(RAPIER, input);
@@ -70,6 +70,21 @@ describe("engine", () => {
     engine.start();
     expect(engine.drop()).toBe(true);
     expect(engine.stats().members).toBe(5);
+  });
+
+  it("snaps the member in play to the grid, square, and inside the plate", () => {
+    engine.start(); // the first member is a slab, 2.5 × 1.5 — five cells by three
+    engine.preview.x = 1.13;
+    engine.preview.z = -0.4;
+    engine.preview.yaw = 0.6; // nearer no turn than a quarter turn
+    let p = engine.placement();
+    expect([p.x, p.z, p.yaw]).toEqual([1.25, -0.25, 0]); // odd cell counts centre on a cell
+    engine.preview.x = 99;
+    expect(engine.placement().x).toBe(4.75); // its far edge stops on the curb
+    engine.preview.yaw = Math.PI / 2; // a quarter turn: now 1.5 across, 2.5 deep
+    p = engine.placement();
+    expect(p.x).toBe(5.25);
+    expect(p.yaw).toBeCloseTo(Math.PI / 2, 9);
   });
 
   it("releases members from higher up once the climber has climbed", () => {

@@ -17,7 +17,7 @@ beforeAll(async () => {
 });
 
 it("replays a scripted run identically", () => {
-  // release() tilts each member by a hair of random; pin it so runs repeat exactly
+  // the engine draws no randomness now (members drop square), but pin it so runs repeat exactly regardless
   vi.spyOn(Math, "random").mockReturnValue(0.5);
   const input = { left: false, right: false, jump: false };
   const engine = createEngine(RAPIER, input);

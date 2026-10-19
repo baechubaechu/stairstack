@@ -2,12 +2,14 @@
 
 // Architectural model colours: bright, fully opaque, and read as materials —
 // ochre timber, terracotta, steel blue, sage and a plum finish.
+// Every member is measured in plan cells (CELL): width and depth are whole cells, heights whole
+// quarter-metres, so members butt up against each other and stack flush.
 export const MEMBER_TYPES = [
-  { id: "slab", label: "Slab", w: 2.6, h: 0.3, d: 1.6, color: 0xe3a736, hex: "#e3a736" },
-  { id: "plank", label: "Plank", w: 3.4, h: 0.25, d: 0.8, color: 0xd2703a, hex: "#d2703a" },
-  { id: "block", label: "Block", w: 1.6, h: 0.9, d: 1.6, color: 0x4e8fbf, hex: "#4e8fbf" },
-  { id: "step", label: "Step", w: 2.0, h: 0.5, d: 1.2, color: 0x7fa85a, hex: "#7fa85a" },
-  { id: "beam", label: "Beam", w: 4.0, h: 0.35, d: 1.0, color: 0x8b6fa8, hex: "#8b6fa8" },
+  { id: "slab", label: "Slab", w: 2.5, h: 0.25, d: 1.5, color: 0xe3a736, hex: "#e3a736" },
+  { id: "plank", label: "Plank", w: 3.5, h: 0.25, d: 1.0, color: 0xd2703a, hex: "#d2703a" },
+  { id: "block", label: "Block", w: 1.5, h: 1.0, d: 1.5, color: 0x4e8fbf, hex: "#4e8fbf" },
+  { id: "step", label: "Step", w: 2.0, h: 0.5, d: 1.0, color: 0x7fa85a, hex: "#7fa85a" },
+  { id: "beam", label: "Beam", w: 4.0, h: 0.5, d: 0.5, color: 0x8b6fa8, hex: "#8b6fa8" },
 ];
 
 export const MEMBER_BY_ID = Object.fromEntries(MEMBER_TYPES.map((t) => [t.id, t]));
@@ -19,10 +21,12 @@ export const QUEUE_AHEAD = 3;
 
 export const GROUND_HALF = 6;
 
-// Placement on the plan: the member's centre stays this far inside the curbs, and each wheel
-// notch turns it this many degrees.
-export const AIM_LIMIT = 5.4;
-export const ROTATE_STEP_DEG = 45;
+// Placement on the plan: the mouse may roam this far from the centre, and each wheel notch turns
+// the member this many degrees. The member itself snaps to the CELL grid (see placement() in
+// world.js): its edges land on grid lines and its whole footprint stays on the plate.
+export const AIM_LIMIT = 6;
+export const ROTATE_STEP_DEG = 90;
+export const CELL = 0.5;
 
 // Endless survival: the run is scored by how long it lasts, and the floor is giving way.
 // The lava surfaces under the floor line, floods the ground first, then climbs the stack.
@@ -145,4 +149,4 @@ export const FACES = {
 export const FLOOR = { id: "floor", label: "Floor", h: 0.3, color: 0xcfc8bc, hex: "#cfc8bc" };
 export const FLOOR_FIRST = 6.5;
 export const FLOOR_STOREY = 6;
-export const FLOOR_GAP = 1.8;
+export const FLOOR_GAP = 2;

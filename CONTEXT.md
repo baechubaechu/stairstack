@@ -6,7 +6,11 @@ collide and tilt. The same rigid bodies are orthographically projected onto an e
 walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = placing; elevation = climbing.
 
 ## Controls
-- Mouse position: aim X/Z on the top view · Wheel: rotate 45° around Y · Click: drop now
+- Mouse position: aim X/Z on the top view, snapped to a 0.5 m grid (`CELL`; member sizes are whole cells, heights whole quarter-metres, the whole footprint stays on the plate) · Wheel: rotate 90° around Y · Click: drop now (members go in square, no random tilt)
+- Settling (`tipping.js`): members never slide or twist. Landing with its centre of mass over its support,
+  a member stays level; hanging off it, it tips over that edge about one grid axis (the one it hangs out
+  further along; dead diagonal → its long side, square → x), moving only as far as the pivot takes it.
+  It lands on a slope's top edge, so it tips to lie along the slope by the same rule.
 - A/D move, W/Space jump · Hold into an elevation edge 0.1 s: turn to the next face · Esc: pause
 - Jump feel: coyote time, jump buffer, fresh-press only, tap = low hop / hold = full jump, apex hang,
   heavier fall; running accelerates/decelerates; ledges up to 0.35 m are walked up (step-up).
