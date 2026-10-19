@@ -35,7 +35,7 @@ export function headStrike(g) {
   const { character } = g;
   const headTop = character.y + character.hh;
   for (const m of g.members) {
-    if (isFreshGate(m)) continue;
+    if (isFreshGate(m) || m.stone) continue; // basalt is fixed: it can't come down on anyone
     const e = extent(g, m);
     const prev = m.bottom ?? e.bottom;
     m.bottom = e.bottom;

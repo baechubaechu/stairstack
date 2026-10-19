@@ -23,7 +23,7 @@ export default function GameOverOverlay({ stats, onRetry }) {
         </h2>
         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
           {lava
-            ? "The lava caught you. It takes the floor first, then the stack from underneath — the higher you keep your footing, the longer you last."
+            ? "The lava caught you. Whatever it swallows sets into ground to build on — keep the stack climbing faster than it rises, and you last longer."
             : "A member came down on your head. Jumping into one above is safe — only a falling member ends the run."}
         </p>
 

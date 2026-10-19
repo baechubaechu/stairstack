@@ -9,7 +9,7 @@ import { BLOCKED_SECONDS, CHAR_STEP, COMPASS, FACES, LAVA_START, MEMBER_BY_ID, P
 import { charStep, createCharacter, headStrike, respawn } from "./climber";
 import { descend, release, spawnActive } from "./drop";
 import { growGates, seedGate, settleGates, touchGates } from "./gates";
-import { advanceRun, resetRun, swallowMembers } from "./survival";
+import { advanceRun, buryDeep, petrify, resetRun } from "./survival";
 import { advanceTurn, blockedView, turnInfo, turnView } from "./turn";
 import { createViews, refresh, viewFor } from "./views";
 import { addMember, charWorld, clearMembers, createWorld, placement, towerTop } from "./world";
@@ -147,9 +147,10 @@ export function createEngine(RAPIER, input) {
 
     settleGates(g, dt);
 
-    // Anything the lava has closed over completely is gone — and whatever it was carrying
-    // loses its footing and comes down after it.
-    swallowMembers(state, g.members, g.world);
+    // Anything the lava has closed over completely sets into basalt ground, and basalt buried
+    // deep out of sight is cleared away.
+    petrify(g);
+    buryDeep(g);
 
     growGates(g);
 

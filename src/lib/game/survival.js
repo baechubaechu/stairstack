@@ -1,8 +1,20 @@
 // The arcade rules of the endless run, kept apart from the physics: the clock and the score it
 // earns, the lava climbing out of the floor, and the way members sink in faster the longer the
 // run goes on. Everything here reads the same rigid bodies the rest of the engine does.
-import { FALL_MAX, FALL_RAMP, LAVA_ACCEL, LAVA_DELAY, LAVA_SPEED, LAVA_START, SCORE_PER_SECOND } from "./constants";
+import {
+  BURY_DEPTH,
+  FALL_MAX,
+  FALL_RAMP,
+  LAVA_ACCEL,
+  LAVA_DELAY,
+  LAVA_SPEED,
+  LAVA_START,
+  SCORE_PER_SECOND,
+  STONE,
+  VIEW_BOTTOM,
+} from "./constants";
 import { memberVertices } from "./elevation";
+import { viewRise } from "./world";
 
 // Every run starts the same way: the clock at zero, and the lava at the foot of the tower.
 export function resetRun(state) {
@@ -27,14 +39,34 @@ export function sinkFactor(elapsed) {
   return Math.min(1 + elapsed * FALL_RAMP, FALL_MAX);
 }
 
-// Take every member the lava has closed over completely out of the world — whatever it was
-// carrying loses its footing and comes down after it.
-export function swallowMembers(state, members, world) {
-  for (let i = members.length - 1; i >= 0; i--) {
+// The lava doesn't take what it swallows: a member it has closed over completely sets hard where
+// it is, into basalt — a fixed body, so the rest of the tower keeps standing on it.
+export function petrify(g) {
+  const { state, RAPIER } = g;
+  for (const m of g.members) {
+    if (m.stone) continue;
+    const verts = memberVertices(m);
     let top = -Infinity;
-    for (const v of memberVertices(members[i])) if (v[1] > top) top = v[1];
+    for (const v of verts) if (v[1] > top) top = v[1];
     if (top >= state.lava) continue;
-    world.removeRigidBody(members[i].body);
-    members.splice(i, 1);
+    m.body.setLinvel({ x: 0, y: 0, z: 0 }, false);
+    m.body.setAngvel({ x: 0, y: 0, z: 0 }, false);
+    m.body.setBodyType(RAPIER.RigidBodyType.Fixed, true);
+    // `sil` / `plan` cache its projections the first time each is asked for
+    m.stone = { verts, top, sil: {}, plan: null };
+    m.hex = STONE.hex;
+    m.color = STONE.color;
+  }
+}
+
+// Basalt deep under the lava and out of the bottom of the window is gone for good — it can't be
+// seen or reached, and being fixed, nothing it held up can fall when it goes.
+export function buryDeep(g) {
+  const floor = Math.min(viewRise(g) + VIEW_BOTTOM, g.state.lava - BURY_DEPTH);
+  for (let i = g.members.length - 1; i >= 0; i--) {
+    const m = g.members[i];
+    if (!m.stone || m.stone.top >= floor) continue;
+    g.world.removeRigidBody(m.body);
+    g.members.splice(i, 1);
   }
 }

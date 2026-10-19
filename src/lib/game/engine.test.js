@@ -2,7 +2,7 @@
 // build, so tests use rapier3d-compat — the same Rapier version and wasm, packaged for Node.
 import RAPIER from "@dimforge/rapier3d-compat";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { DROP_Y, LAVA_START, VIEW_FOLLOW } from "./constants";
+import { BURY_DEPTH, DROP_Y, LAVA_START, VIEW_FOLLOW } from "./constants";
 import { createEngine } from "./engine";
 
 const DT = 1 / 60;
@@ -96,6 +96,39 @@ describe("engine", () => {
     const s = engine.stats();
     expect(s.over).toBe(true);
     expect(s.cause).toBe("lava");
+  });
+
+  // Keep the climber hovering high above the stack so the lava can climb without ending the run.
+  function runHovering(seconds) {
+    for (let t = 0; t < seconds; t += DT) {
+      engine.character.y = 9;
+      engine.character.vy = 0;
+      engine.step(DT);
+    }
+  }
+
+  it("sets swallowed members into fixed basalt instead of removing them", () => {
+    engine.start();
+    engine.preview.x = 4;
+    runHovering(45); // the lava is well over the starter slabs by now
+    const stones = engine.members.filter((m) => m.stone);
+    expect(engine.mode).toBe("play");
+    expect(stones.length).toBeGreaterThan(0);
+    for (const m of stones) {
+      expect(m.body.isFixed()).toBe(true);
+      expect(m.stone.top).toBeLessThan(engine.lava);
+    }
+  });
+
+  it("clears basalt buried deep under the lava and out of view", () => {
+    engine.start();
+    engine.preview.x = 4;
+    runHovering(80);
+    expect(engine.mode).toBe("play");
+    // whatever basalt is left sits no deeper than BURY_DEPTH under the surface
+    for (const m of engine.members) if (m.stone) expect(m.stone.top).toBeGreaterThan(engine.lava - BURY_DEPTH - 0.05);
+    // and the starter stack, long since buried, is gone
+    expect(engine.members.some((m) => m.stone && m.stone.top < 0.5)).toBe(false);
   });
 
   it("restarts a fresh run", () => {

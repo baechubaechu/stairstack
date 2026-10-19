@@ -220,12 +220,19 @@ export default function PlanView({ engineRef, onDrop }) {
     const eng = engineRef.current;
     if (!eng) return;
 
+    // footprints, lowest first, so a higher member sits over the ones beneath it
+    const sorted = [...eng.plans].sort((a, b) => a.top - b.top);
+    const stack = sorted.filter((p) => !p.stone);
+    const k = scale / 52;
+
+    // basalt is under the lava, so it goes down first and the lava washes over it
+    for (const plan of sorted) {
+      if (!plan.stone) continue;
+      paintMember(ctx, plan.poly, X, Y, { type: "basalt", hex: plan.hex, scale, outline: edgeOf(plan.hex) });
+    }
+
     // once the lava is over the floor, the whole plate is under it — the stack stands in it
     drawPlanLava(ctx, X, Y, GROUND_HALF, eng.lava, now / 1000);
-
-    // footprints, lowest first, so a higher member sits over the ones beneath it
-    const stack = [...eng.plans].sort((a, b) => a.top - b.top);
-    const k = scale / 52;
 
     // shadows — the higher the member, the further its shadow reaches
     for (const plan of stack) {

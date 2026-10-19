@@ -30,6 +30,7 @@ import {
   FACES,
   GROUND_HALF,
   LAVA_START,
+  VIEW_BOTTOM,
   VIEW_FOLLOW,
 } from "@/lib/game/constants";
 import { faceU } from "@/lib/game/elevation";
@@ -37,7 +38,7 @@ import { ACCENT, ACCENT_SOFT, BLOCK, BLOCK_RGB, CLIMBER_GUIDE, INK, INK_SOFT, PA
 
 // Visible elevation window at the start of a run, in metres. It reaches just past the release
 // height, so a dropping member is on screen from the top of its fall.
-const BASE_VIEW = { xMin: -6.6, xMax: 6.6, yMin: -1.1, yMax: DROP_Y + 0.1 };
+const BASE_VIEW = { xMin: -6.6, xMax: 6.6, yMin: VIEW_BOTTOM, yMax: DROP_Y + 0.1 };
 const SIDES = [-1, 1];
 
 // The window follows the climber up by the engine's viewRise (feet above VIEW_FOLLOW), the

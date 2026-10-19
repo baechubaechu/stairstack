@@ -31,10 +31,16 @@ function grainAngle(m, f) {
 
 // Members projected onto one face: the face being read drives collision, the other faces
 // are what the elevation shows while it turns. `type` and `angle` are for drawing only.
+// Basalt is projected once per face and kept, since it never moves again.
 export function project(g, faceId) {
   const f = FACES[faceId];
   const out = [];
   for (const m of g.members) {
+    if (m.stone) {
+      const poly = (m.stone.sil[faceId] ??= convexHull(m.stone.verts.map((v) => [faceU(f, v), v[1]])));
+      if (poly.length >= 3) out.push({ hex: m.hex, color: m.color, poly, type: "basalt", angle: 0, stone: true });
+      continue;
+    }
     const poly = convexHull(memberVertices(m).map((v) => [faceU(f, v), v[1]]));
     if (poly.length >= 3) {
       out.push({
@@ -87,6 +93,14 @@ export function refresh(g) {
   views.silhouettes = project(g, g.state.face);
   views.plans = [];
   for (const m of g.members) {
+    if (m.stone) {
+      // basalt keeps the footprint it set with
+      m.stone.plan ??= convexHull(m.stone.verts.map((v) => [v[0], v[2]]));
+      if (m.stone.plan.length >= 3) {
+        views.plans.push({ hex: m.hex, color: m.color, poly: m.stone.plan, top: m.stone.top, gate: null, type: "basalt", angle: 0, stone: true });
+      }
+      continue;
+    }
     const verts = memberVertices(m);
     const plan = convexHull(verts.map((v) => [v[0], v[2]]));
     if (plan.length >= 3) {
@@ -101,7 +115,8 @@ export function refresh(g) {
       views.plans.push({ hex: m.hex, color: m.color, poly: plan, top, gate, type: m.type.id, angle });
     }
   }
-  views.expanded = [GROUND_POLY, ...views.silhouettes.map((s) => s.poly)].map((p) =>
-    expandForBox(p, character.hw, character.hh),
-  );
+  // basalt lies wholly under the lava, where the climber can never stand, so it is left out
+  // of what the climb collides with
+  const solid = views.silhouettes.filter((s) => !s.stone).map((s) => s.poly);
+  views.expanded = [GROUND_POLY, ...solid].map((p) => expandForBox(p, character.hw, character.hh));
 }

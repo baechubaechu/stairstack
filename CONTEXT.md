@@ -15,9 +15,12 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
    FRONT = viewed from SOUTH (start), RIGHT = EAST, BACK = NORTH, LEFT = WEST.
 2. Face switching with dashed turn lines at the elevation edges. A blocked face (climber's spot is taken)
    shakes, tints red, shows "BLOCKED — TURNING BACK" and marks the spot with an X, then turns back.
-3. Endless survival: lava rises from the floor (accelerating); fully submerged members vanish and whatever
-   they carried collapses; climber touching lava = game over; a member falling onto the climber's head =
-   game over. Score +10/s. Members sink in up to 4× faster over time.
+3. Endless survival: lava rises from the floor (waits 5 s, then accelerates); fully submerged members set
+   into fixed basalt ground the tower keeps standing on (basalt deep under the lava and below the view is
+   deleted for performance) — they used to vanish, which collapsed the tower and made climbing high
+   impossible. Climber touching lava = game over; a member falling onto the climber's head = game over.
+   Score +10/s. Members sink in up to 4× faster over time. The elevation window follows the climber up
+   and members are released from its top.
 4. Directional exit plates (all in `src/lib/game/gates.js`, drawn by `components/game/drawGate.js`):
    **wrong implementation, to be rebuilt from scratch.** Treat as a placeholder, not a spec; don't extend it.
 

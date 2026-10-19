@@ -127,7 +127,32 @@ function steel(c) {
   }
 }
 
-const PAINTERS = { slab: timber, plank: terracotta, block: glass, step: stone, beam: steel };
+// Basalt: a member the lava has set hard — dark, flecked rock with still-glowing cracks.
+function basalt(c) {
+  const r = rng(41);
+  for (let i = 0; i < 46; i++) {
+    c.fillStyle = `rgba(${r() > 0.5 ? "190,180,170" : "10,8,8"},${(0.08 + r() * 0.1).toFixed(2)})`;
+    c.beginPath();
+    c.arc(r() * TILE, r() * TILE, 0.6 + r() * 1.6, 0, Math.PI * 2);
+    c.fill();
+  }
+  c.strokeStyle = "rgba(255,140,60,0.5)";
+  c.lineWidth = 1;
+  for (let k = 0; k < 3; k++) {
+    let x = r() * TILE;
+    let y = r() * TILE;
+    c.beginPath();
+    c.moveTo(x, y);
+    for (let s = 0; s < 5; s++) {
+      x += (r() - 0.3) * 14;
+      y += (r() - 0.5) * 14;
+      c.lineTo(x, y);
+    }
+    c.stroke();
+  }
+}
+
+const PAINTERS = { slab: timber, plank: terracotta, block: glass, step: stone, beam: steel, basalt };
 
 // One texture tile per type, painted once and shared by every canvas.
 const tiles = new Map();

@@ -23,8 +23,10 @@ export const AIM_LIMIT = 5.4;
 export const ROTATE_STEP_DEG = 15;
 
 // Endless survival: the run is scored by how long it lasts, and the floor is giving way.
-// The lava surfaces under the floor line, floods the ground first, then climbs the stack and
-// eats it from underneath. Touch it and the run is over.
+// The lava surfaces under the floor line, floods the ground first, then climbs the stack.
+// Whatever it closes over completely sets hard into basalt — fixed ground the rest of the
+// tower keeps standing on — so the race is to build up faster than it rises. Touch the lava
+// and the run is over.
 // The opening is gentle: the lava holds still for LAVA_DELAY seconds while the first members
 // come down, then creeps up slowly and gathers pace — it floods the floor about half a
 // minute in, and only becomes the real threat after that.
@@ -33,6 +35,12 @@ export const LAVA_DELAY = 5; // s before the lava starts to rise at all
 export const LAVA_SPEED = 0.02; // m/s it rises once it starts
 export const LAVA_ACCEL = 0.0012; // m/s² — and it keeps gaining
 export const SCORE_PER_SECOND = 10; // survival score: a point every tenth of a second
+
+// What a swallowed member becomes, and when it can go: basalt deeper than BURY_DEPTH under the
+// lava that has also dropped out of the bottom of the elevation window is removed outright —
+// it is fixed, so nothing it held up can fall, and nobody can see or reach it any more.
+export const STONE = { hex: "#4b4542", color: 0x4b4542 };
+export const BURY_DEPTH = 1;
 
 // Members sink in faster the longer a run lasts — AUTO_FALL_SECONDS at the first second,
 // down to a quarter of that once the ramp bottoms out.
@@ -47,6 +55,8 @@ export const DROP_Y = 8.6;
 // above the floor, rising by the excess — and members are released that much higher too, so
 // they still fall in from the top of the window however high the climb has got.
 export const VIEW_FOLLOW = 3.2;
+// How far below the floor the elevation window reaches before it has risen at all.
+export const VIEW_BOTTOM = -1.1;
 
 // How long an unattended member takes to sink from the release height to the stack:
 // it descends on its own at a slow, steady rate, and a click drops it at once instead.

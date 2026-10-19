@@ -57,6 +57,8 @@ export function memberSilhouette(m) {
 
 // The same corners, for a member that is a rigid body.
 export function memberVertices(m) {
+  // basalt never moves again, so its corners are worked out once, when it sets
+  if (m.stone) return m.stone.verts;
   return boxVertices(m.hx, m.hy, m.hz, m.body.translation(), m.body.rotation());
 }
 

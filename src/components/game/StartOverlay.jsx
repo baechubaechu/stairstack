@@ -60,8 +60,9 @@ export default function StartOverlay({ engineState, onStart }) {
         </div>
 
         <p className="mt-3.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] leading-relaxed text-rose-700">
-          Lava climbs out of the floor: it floods the ground first, then eats the stack from
-          underneath — touch it and the run is over. A member coming down on your head ends it too.
+          Lava climbs out of the floor: it floods the ground first, then rises up the stack —
+          whatever it swallows sets hard into basalt, ground you can keep building on. Touch the
+          lava and the run is over. A member coming down on your head ends it too.
         </p>
 
         <Button className="mt-3.5 w-full" data-testid="btn-start" disabled={!ready} onClick={onStart}>
