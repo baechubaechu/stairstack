@@ -173,6 +173,11 @@ export function placement(g) {
   return { type, x, z, y, landing, yaw };
 }
 
+// How much narrower a member's collider is than the member, on each side (see addMember).
+const SIDE_GAP = 0.01;
+// How far ahead, in metres, a member's soft CCD looks along its path.
+const SOFT_CCD = 0.6;
+
 export function addMember(g, type, x, y, z, euler) {
   const { RAPIER, world } = g;
   const body = world.createRigidBody(
@@ -181,12 +186,19 @@ export function addMember(g, type, x, y, z, euler) {
       .setRotation(quatFromEuler(euler.x, euler.y, euler.z))
       .setLinearDamping(0.1)
       .setAngularDamping(0.5)
-      .setCcdEnabled(true),
+      // Soft CCD, not full CCD: full CCD's shape-casts and substeps would hang the solver
+      // outright once a tall heap of members with locked axes was all in contact. The soft kind
+      // looks ahead along the path instead, enough that a fast drop can't pass through a slab.
+      .setSoftCcdPrediction(SOFT_CCD),
   );
   // grippy: a member that tips is free to move only the way it tips, and even that way it
-  // pivots over the edge rather than sliding off it (see tipping.js)
+  // pivots over the edge rather than sliding off it (see tipping.js).
+  // The collider is a hair narrower than the member (SIDE_GAP each side, never its height):
+  // members sit flush on the grid, and two locked side by side that touched would press into
+  // each other sideways with nowhere to go — friction would turn that push into a vertical
+  // kick and throw one of them into the sky. Everything drawn and climbed keeps the full size.
   const collider = world.createCollider(
-    RAPIER.ColliderDesc.cuboid(type.w / 2, type.h / 2, type.d / 2)
+    RAPIER.ColliderDesc.cuboid(type.w / 2 - SIDE_GAP, type.h / 2, type.d / 2 - SIDE_GAP)
       .setFriction(1.2)
       .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Max)
       .setRestitution(0.02)

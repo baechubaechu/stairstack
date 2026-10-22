@@ -1,6 +1,6 @@
 import RAPIER from "@dimforge/rapier3d-compat";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { MEMBER_BY_ID } from "./constants";
+import { GROUND_HALF, MEMBER_BY_ID } from "./constants";
 import { createEngine } from "./engine";
 import { overhang, tipAxis } from "./tipping";
 import { addMember } from "./world";
@@ -100,7 +100,7 @@ describe("members on the grid", () => {
     const slope = tilt(plank).aboutZ;
     const block = addMember(g, MEMBER_BY_ID.block, 0.75, 3.5, 0.0, { x: 0, y: 0, z: 0 });
     settleFor(2);
-    expect(block.tip.axis).toBe("x");
+    expect(Math.abs(tilt(block).aboutZ)).toBeGreaterThan(0.05); // it tipped, along x
     expect(Math.abs(tilt(block).aboutX)).toBeLessThan(1e-3);
     expect(Math.sign(tilt(block).aboutZ)).toBe(Math.sign(slope)); // leaning the way the plank does
   });
@@ -134,4 +134,35 @@ describe("members on the grid", () => {
     expect(slab.tip.axis).toBe("x");
     expect(tilt(slab).aboutZ).toBeLessThan(-0.05); // its +x end has gone down
   });
+
+  it("never flings members when they are dropped thick and fast onto one another", () => {
+    // a member every quarter second, over a scatter of overlapping spots, both ways round
+    for (let i = 0; i < 80 && engine.mode === "play"; i++) {
+      engine.preview.x = ((i * 2.3) % 7) - 1.5;
+      engine.preview.z = ((i * 1.7) % 9) - 4.5;
+      engine.preview.yaw = (i % 2) * (Math.PI / 2);
+      engine.drop();
+      for (let j = 0; j < 15; j++) {
+        engine.character.x = -5.6; // out at the edge, clear of the drops
+        engine.step(DT);
+      }
+    }
+    const placed = engine.members.filter((m) => !m.floor && !m.stone);
+    for (const m of placed) {
+      const t = m.body.translation();
+      expect(Math.abs(t.x)).toBeLessThan(GROUND_HALF + 0.5);
+      expect(Math.abs(t.z)).toBeLessThan(GROUND_HALF + 0.5);
+      expect(t.y).toBeLessThan(40); // no member shot into the sky
+    }
+  });
+
+  it("never lets a member dropped from high up fall through a thin one", () => {
+    const plank = addMember(g, MEMBER_BY_ID.plank, 0.25, 0.13, 0, { x: 0, y: 0, z: 0 });
+    settleFor(0.5);
+    const slab = addMember(g, MEMBER_BY_ID.slab, 0.25, 30, 0, { x: 0, y: 0, z: 0 }); // ~23 m/s by the time it arrives
+    settleFor(3);
+    const plankTop = plank.body.translation().y + plank.hy;
+    expect(slab.body.translation().y - slab.hy).toBeGreaterThan(plankTop - 0.05);
+  });
 });
+

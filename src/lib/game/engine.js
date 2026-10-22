@@ -15,9 +15,18 @@ import { advanceTurn, blockedView, turnInfo, turnView } from "./turn";
 import { createViews, refresh, viewFor } from "./views";
 import { addMember, charWorld, clearMembers, createWorld, placement, towerTop } from "./world";
 
+// The climber's last few seconds, kept so a game over can show how they got there.
+const TRAIL_SECONDS = 4;
+const TRAIL_EVERY = 0.1;
+// How far back the game-over summary looks for "what happened just before".
+const LOOKBACK = 3;
+
 function createState() {
   return {
     mode: "menu",
+    physSteps: 0, // physics steps taken, so per-frame answers can tell when the world has moved
+    trail: [], // [{t, x, feet, face, lava}] every TRAIL_EVERY s, the last TRAIL_SECONDS of them
+    death: null, // how the run ended, for the game-over feedback (see gameOver)
     elapsed: 0,
     best: 0, // the highest the climber's feet have been this run
     timeScore: 0,
@@ -65,6 +74,8 @@ export function createEngine(RAPIER, input) {
   }
 
   function resetCharacter() {
+    state.trail = [];
+    state.death = null;
     state.face = "front";
     respawn(character);
     character.grounded = false;
@@ -119,7 +130,23 @@ export function createEngine(RAPIER, input) {
     state.paused = !state.paused;
   }
 
-  function gameOver(cause) {
+  // How the run ended, kept for the game-over screen and the freeze-frame: where the climber went
+  // down, what got them, and how the last few seconds went — how much they climbed, how much the
+  // lava rose.
+  function gameOver(cause, killer = null) {
+    const feet = character.y - character.hh;
+    const then = state.trail.find((p) => p.t >= state.elapsed - LOOKBACK) ?? state.trail[0];
+    state.death = {
+      cause,
+      face: state.face,
+      x: character.x,
+      feet,
+      lava: state.lava,
+      killer: killer ? g.members.indexOf(killer) : -1,
+      killerType: killer ? killer.type.id : null,
+      climbed: then ? feet - then.feet : 0,
+      lavaRose: then ? state.lava - then.lava : 0,
+    };
     state.cause = cause;
     state.mode = "over";
     state.paused = false;
@@ -136,18 +163,17 @@ export function createEngine(RAPIER, input) {
     // Physics first, on its own fixed clock.
     state.physAcc += dt;
     let n = 0;
-    let struck = false;
+    let struck = null;
     while (state.physAcc >= PHYS_STEP && n < 5) {
       g.world.step();
+      state.physSteps += 1;
       settle(g); // members that just landed decide whether, and which way, they tip
       state.physAcc -= PHYS_STEP;
       n += 1;
       // Judged on the frame it happens, so the world can freeze with the fatal
       // member exactly where it struck.
-      if (headStrike(g)) {
-        struck = true;
-        break;
-      }
+      struck = headStrike(g);
+      if (struck) break;
     }
     if (state.physAcc > PHYS_STEP) state.physAcc = 0;
 
@@ -158,7 +184,7 @@ export function createEngine(RAPIER, input) {
 
     refresh(g);
     if (struck) {
-      gameOver("head");
+      gameOver("head", struck);
       return;
     }
 
@@ -182,6 +208,13 @@ export function createEngine(RAPIER, input) {
     if (character.grounded) reachHeight(state, character.y - character.hh);
 
     descend(g, dt);
+
+    // the trail the game-over screen draws: a point every TRAIL_EVERY s, the last few seconds
+    const last = state.trail[state.trail.length - 1];
+    if (!last || state.elapsed - last.t >= TRAIL_EVERY) {
+      state.trail.push({ t: state.elapsed, x: character.x, feet: character.y - character.hh, face: state.face, lava: state.lava });
+      while (state.trail.length && state.trail[0].t < state.elapsed - TRAIL_SECONDS) state.trail.shift();
+    }
 
     // The lava is the floor now: touch it and the run is over.
     if (character.y - character.hh <= state.lava) gameOver("lava");
@@ -218,6 +251,7 @@ export function createEngine(RAPIER, input) {
 
   seedStarter();
   resetCharacter();
+  let forecastMemo = { key: null, value: null };
 
   return {
     world: g.world,
@@ -234,6 +268,13 @@ export function createEngine(RAPIER, input) {
     get lava() {
       return state.lava;
     },
+    // How the run ended (null while it lasts), and the climber's last few seconds.
+    get death() {
+      return state.death;
+    },
+    get trail() {
+      return state.trail;
+    },
     get turnView() {
       return turnView(state);
     },
@@ -247,8 +288,13 @@ export function createEngine(RAPIER, input) {
       return g.views.plans;
     },
     // Which way the member in play would tip if it landed where it is aimed: { axis, sign } or null.
+    // Both views ask every frame; the answer only changes when the world steps or the aim moves.
     tipForecast() {
-      return state.active ? forecastTip(g, placement(g)) : null;
+      if (!state.active) return null;
+      const p = placement(g);
+      const key = `${state.physSteps}|${p.x}|${p.z}|${p.yaw}|${p.type.id}|${p.y.toFixed(3)}`;
+      if (forecastMemo.key !== key) forecastMemo = { key, value: forecastTip(g, p) };
+      return forecastMemo.value;
     },
     placement: () => placement(g),
     viewFor: (faceId) => viewFor(g, faceId),

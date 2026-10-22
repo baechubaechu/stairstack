@@ -73,9 +73,9 @@ export function headStrike(g) {
       continue; // beside the climber, not over it
     }
     if (m.body.linvel().y > -1.2) continue; // resting on the head, or shoved up by a jump — not falling onto it
-    return true;
+    return m; // the member that came down on them
   }
-  return false;
+  return null;
 }
 
 // Sweep the character's centre against the expanded silhouettes: the earliest contact wins

@@ -15,10 +15,13 @@
 // Every tilt is about x or z, so every slope in the tower runs along a grid axis — and a member
 // landing on a slope hangs off its top edge toward the downhill side, so it tips to lie along the
 // slope with the same rule.
+import { GROUND_HALF } from "./constants";
 import { convexHull } from "./hull";
 
 // Steps with nothing underneath before a landed member counts as airborne again.
 const AIRBORNE_STEPS = 6;
+// How often, in steps, a member that has landed level is checked for still being held up.
+const SETTLED_EVERY = 8;
 // How close the two overhangs must be to count as a dead diagonal, in metres.
 const DIAGONAL = 0.02;
 // A centre this close to the edge of its support still counts as over it, in metres — so a
@@ -31,6 +34,13 @@ const FIRST_TOUCH = 0.02;
 // The most a tipping member's centre may shift the way it tips, in metres (or its half thickness,
 // if that is less).
 const PIVOT_REACH = 0.3;
+// How far inside the plate's edge a tipping member's centre must stay, in metres.
+const PLATE_MARGIN = 0.25;
+// Speeds no member reaches in play, in m/s: nothing throws one upward or sideways, and nothing
+// falls far enough to come down this fast. A body past them has been kicked by the solver.
+const KICK_UP = 3;
+const KICK_SIDE = 8;
+const KICK_DOWN = 60;
 
 // Hold a newly added member square: straight down only, no turning of any kind.
 export function holdSquare(body) {
@@ -119,12 +129,23 @@ export function settle(g) {
   for (const m of g.members) {
     const tip = m.tip;
     if (!tip || m.stone) continue;
+    // a member at rest has nothing to decide, and doesn't move
+    if (m.body.isSleeping()) continue;
+    tip.tick = (tip.tick ?? 0) + 1;
+    if (kicked(m)) continue;
     if (tip.axis) holdToPivot(m);
+    // A tower is one touching heap that new members keep awake, so this runs for every member on
+    // every step. One that has landed level only needs watching for its support going from under
+    // it, which can wait a few steps; one still falling, or tipping, is watched every step.
+    if (tip.landed && !tip.axis && tip.tick % SETTLED_EVERY) continue;
     const support = supportPoints(g.world, m);
     if (!support.length) {
+      // tipped clear of its edge: from here it only drops, straight down
+      if (tip.axis && !tip.held) lockTravel(m);
       if (tip.landed && ++tip.air >= AIRBORNE_STEPS) {
         tip.landed = false;
         tip.axis = null;
+        tip.held = false;
         holdSquare(m.body);
       }
       continue;
@@ -141,23 +162,48 @@ export function settle(g) {
   }
 }
 
-// Pivoting over an edge only shifts a member's centre a little — about half its thickness. Any
-// further and it is sliding, which members don't do: hold it there and take that motion away.
+// The safety net under all these locks. When two members touch where neither can give way along
+// the contact (both locked that way), the solver's push between them has no limit, and one of
+// them is shot off at thousands of metres a second. Every member keeps where it was after the
+// last good step; one caught moving impossibly fast goes back there and stops. Returns true if
+// it had to.
+function kicked(m) {
+  const { body } = m;
+  const v = body.linvel();
+  if (v.y < KICK_UP && v.y > -KICK_DOWN && Math.abs(v.x) < KICK_SIDE && Math.abs(v.z) < KICK_SIDE) {
+    if (!m.tip.last || m.tip.tick % 4 === 0) m.tip.last = { t: body.translation(), q: body.rotation() };
+    return false;
+  }
+  if (m.tip.last) {
+    body.setTranslation(m.tip.last.t, true);
+    body.setRotation(m.tip.last.q, true);
+  }
+  body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+  body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+  return true;
+}
+
+// Pivoting over an edge only shifts a member's centre a little. Any further and it is sliding,
+// which members don't do: past PIVOT_REACH its movement that way is locked again — it can go on
+// turning over the edge, but no longer travel. It is never moved back by hand: putting a body
+// where the solver didn't would push it into its neighbours (see kicked).
 function holdToPivot(m) {
   const { body, tip } = m;
-  const reach = Math.min(PIVOT_REACH, m.hy);
+  if (tip.held) return;
   const t = body.translation();
   const at = tip.axis === "x" ? t.x : t.z;
-  const held = Math.max(tip.from - reach, Math.min(tip.from + reach, at));
-  if (held === at) return;
+  // as far as the pivot takes it — and never with its centre off the plate
+  if (Math.abs(at - tip.from) <= PIVOT_REACH && Math.abs(at) <= GROUND_HALF - PLATE_MARGIN) return;
+  lockTravel(m);
+}
+
+// Stop a tipping member travelling: it keeps turning about its edge, but moves only up and down.
+function lockTravel(m) {
+  const { body, tip } = m;
+  tip.held = true;
   const v = body.linvel();
-  if (tip.axis === "x") {
-    body.setTranslation({ x: held, y: t.y, z: t.z }, true);
-    body.setLinvel({ x: 0, y: v.y, z: v.z }, true);
-  } else {
-    body.setTranslation({ x: t.x, y: t.y, z: held }, true);
-    body.setLinvel({ x: v.x, y: v.y, z: 0 }, true);
-  }
+  body.setLinvel(tip.axis === "x" ? { x: 0, y: v.y, z: v.z } : { x: v.x, y: v.y, z: 0 }, true);
+  body.setEnabledTranslations(false, true, false, true);
 }
 
 // The forecast for the member in play, before it is dropped: which way it will tip where it is
