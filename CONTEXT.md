@@ -41,6 +41,13 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
    it, then solid ground; the next storey appears 6 m higher, gap hidden from the face they're on.
    First storey at 6.5 m. This is what forces turning the tower.
 
+5. Beta (open, PC only): Korean UI by default (English toggle); phones get a "play on a computer" page
+   with the link to copy. Anonymous run logs + leaderboard + in-game bug / idea reports go to Supabase
+   (guarded against doctored scores and spam). Game over explains what happened (the lava out-climbing
+   you, or which member hit you) and can show the freeze-frame: the last seconds' path, the spot, the
+   member. Link preview: `public/og.jpg` + Open Graph tags in `index.html` (stairstack.vercel.app).
+   Music: made with Suno (free plan → non-commercial, credited on the start screen).
+
 ## Design history (why things are the way they are)
 - Problem: stacking on one side forms an easy staircase. Problem: you could clear without ever turning the
   view. Answers so far: endless lava (no fixed goal) + directional plates forcing face changes.

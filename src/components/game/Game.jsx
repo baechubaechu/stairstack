@@ -10,8 +10,11 @@ import { FrameContext } from "@/components/game/frame";
 import GameOverOverlay from "@/components/game/GameOverOverlay";
 import StartOverlay from "@/components/game/StartOverlay";
 import PauseOverlay from "@/components/game/PauseOverlay";
-import { LAVA_START, SPAWN } from "@/lib/game/constants";
+import ReportDialog from "@/components/game/ReportDialog";
+import MobileGate, { isTouchOnly } from "@/components/game/MobileGate";
+import { FACES, LAVA_START, SPAWN } from "@/lib/game/constants";
 import * as music from "@/lib/game/music";
+import { getLang, t, useLang } from "@/lib/i18n";
 import { fetchLeaderboard, submitRun } from "@/lib/telemetry";
 
 const TIMELINE_EVERY = 5; // seconds between run-log samples
@@ -54,6 +57,11 @@ export default function Game() {
   const [stats, setStats] = useState(INITIAL);
   const [muted, setMuted] = useState(music.isMuted);
   const [volume, setVolume] = useState(music.getVolume);
+  // the report form, with the run as it stood when it was opened (null while closed)
+  const [reporting, setReporting] = useState(null);
+  // phones and tablets are told to come back on a computer (they can still look anyway)
+  const [touchGate, setTouchGate] = useState(isTouchOnly);
+  useLang();
 
   const push = useCallback(() => {
     const eng = engineRef.current;
@@ -110,7 +118,9 @@ export default function Game() {
       raf = requestAnimationFrame(loop);
       const dt = Math.min((now - last) / 1000, 0.1);
       last = now;
+      const t0 = performance.now();
       engineRef.current?.step(dt);
+      const t1 = performance.now();
       // a canvas that throws must not stop the others drawing, or the HUD updating below
       for (const draw of framesRef.current) {
         try {
@@ -119,6 +129,12 @@ export default function Game() {
           if (!loggedRef.current) console.error("STAIRSTACK: a canvas failed to draw", err);
           loggedRef.current = true;
         }
+      }
+      // dev only: what a frame costs, smoothed — read window.__perf in the console
+      if (import.meta.env.DEV) {
+        const p = (window.__perf ??= { step: 0, draw: 0 });
+        p.step += (t1 - t0 - p.step) * 0.05;
+        p.draw += (performance.now() - t1 - p.draw) * 0.05;
       }
       acc += dt;
       if (acc > 0.1) {
@@ -130,8 +146,18 @@ export default function Game() {
     return () => cancelAnimationFrame(raf);
   }, [push]);
 
+  // The report form takes the keyboard while it is open: Esc closes it, and typing in it never
+  // walks the climber.
+  const reportRef = useRef(false);
   useEffect(() => {
     const down = (e) => {
+      if (e.code === "Escape" && reportRef.current) {
+        e.preventDefault();
+        setReporting(null);
+        return;
+      }
+      const tag = e.target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
       if (e.code === "Space") e.preventDefault();
       if (e.code === "Escape") {
         e.preventDefault();
@@ -196,6 +222,22 @@ export default function Game() {
     music.setMuted(!muted);
     setMuted(!muted);
   }, [muted]);
+  // Opening the report form holds the run, so nothing can go wrong while the player is typing.
+  const openReport = useCallback(() => {
+    const eng = engineRef.current;
+    if (eng && eng.mode === "play" && !eng.stats().paused && !eng.stats().over) eng.togglePause();
+    const s = eng?.stats();
+    setReporting(
+      s
+        ? { mode: s.mode, over: s.over, score: s.score, time: Number(s.time.toFixed(1)), best: Number(s.best.toFixed(2)), lava: Number(s.lava.toFixed(2)), face: s.face, members: s.members, floors: s.floors, lang: getLang() }
+        : { lang: getLang() },
+    );
+    push();
+  }, [push]);
+  useEffect(() => {
+    reportRef.current = Boolean(reporting);
+  }, [reporting]);
+
   const changeVolume = useCallback((v) => {
     music.setVolume(v);
     setVolume(v);
@@ -226,21 +268,22 @@ export default function Game() {
           onRestart={restart}
           muted={muted}
           onToggleMute={toggleMute}
+          onReport={openReport}
         />
   
         <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[1fr_auto_1.02fr] lg:overflow-hidden">
           <ViewFrame
-            title="Elevation"
-            hint={`${stats.faceLabel} face · lava ${stats.lava.toFixed(1)} m · depth collapsed`}
+            title={t("view.elevation")}
+            hint={t("view.elevationHint", { face: t(`face.${stats.face}`), lava: stats.lava.toFixed(1) })}
           >
             <ElevationView engineRef={engineRef} />
             <div className="pointer-events-none absolute right-2 top-2 flex flex-col items-center rounded-md border border-border bg-card/90 px-1.5 pb-1 shadow-sm">
               <FaceIndicator engineRef={engineRef} />
               <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-ochre">
-                {stats.faceLabel}
+                {t(`face.${stats.face}`)}
               </span>
               <span className="font-mono text-[7px] uppercase tracking-[0.14em] text-muted-foreground">
-                Viewed from {stats.faceSide}
+                {t("view.viewedFrom", { side: t(`compass.${FACES[stats.face].compass}`) })}
               </span>
             </div>
           </ViewFrame>
@@ -248,11 +291,11 @@ export default function Game() {
           <NextQueue ids={stats.nextIds} />
 
           <ViewFrame
-            title="Top View"
-            hint="plan in perspective · aim with the mouse · click to drop"
+            title={t("view.plan")}
+            hint={t("view.planHint")}
             badge={
               <span className="hidden font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground sm:inline">
-                world X / Z
+                {t("view.planBadge")}
               </span>
             }
           >
@@ -260,7 +303,7 @@ export default function Game() {
             {engineState !== "ready" ? (
               <div className="absolute inset-0 flex items-center justify-center bg-card/80">
                 <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                  {engineState === "failed" ? "Physics engine failed to start" : "Starting physics world…"}
+                  {engineState === "failed" ? t("view.failed") : t("view.starting")}
                 </p>
               </div>
             ) : null}
@@ -279,9 +322,12 @@ export default function Game() {
             onVolume={changeVolume}
             muted={muted}
             onToggleMute={toggleMute}
+            onReport={openReport}
           />
         ) : null}
-        {stats.over ? <GameOverOverlay stats={stats} board={board} onRetry={restart} /> : null}
+        {touchGate ? <MobileGate onDismiss={() => setTouchGate(false)} /> : null}
+        {reporting ? <ReportDialog context={reporting} onClose={() => setReporting(null)} /> : null}
+        {stats.over ? <GameOverOverlay stats={stats} death={engineRef.current?.death} board={board} onRetry={restart} onReport={openReport} /> : null}
       </div>
     </FrameContext.Provider>
   );

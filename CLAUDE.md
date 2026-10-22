@@ -31,7 +31,9 @@ Tailwind 3. No backend. Game design notes and history: `CONTEXT.md`. Planned wor
 it steps the engine, then every canvas draws via `useFrame` (`frame.js`). Canvases size themselves with
 `useCanvasSize`. `src/components/ui/button.jsx` is the one shadcn component in use. Alias `@/` → `src/`.
 `PlanView.jsx` draws the plan through `perspective.js` (a camera behind the face being read; render only,
-the engine never reads it).
+the engine never reads it). Every word on screen comes from `src/lib/i18n.js` (Korean default, English
+toggle): React reads it via `useLang()`, canvases call `t()` (imported as `tr` where `t` means time).
+`MobileGate.jsx` turns phones away, `ReportDialog.jsx` sends bug reports / ideas to Supabase.
 `src/components/game/art/` — decoration only, never read by the engine: `materials.js` (per-type member
 textures, top-lit shading, contact shadows), `scene.js` (dusk sky, foundation section, lava surface/glow/
 embers, plan-view lava), `climber.js` (the hard-hat figure, its poses, landing dust). Render-side
@@ -51,9 +53,17 @@ randomness (embers, dust) is fine there; the engine itself must stay determinist
 - Tailwind `accent` is shadcn's near-white hover tint; for the game's ochre use `ochre` (or `ACCENT` on canvas).
 - Tuning numbers live in `constants.js` (e.g. `ROTATE_STEP_DEG`, `AIM_LIMIT`); UI text reads them from there.
 - Code comments explain the game rule behind the code, in full sentences — keep that style.
+- Physics stability: members have locked axes (see `tipping.js`), so two of them pressed together where
+  neither can give way would make Rapier's solver explode. Hence: colliders a hair narrower than the
+  member (`SIDE_GAP`), soft CCD instead of full CCD (full CCD hung the solver on tall heaps), releases
+  lifted clear of overlaps (`clearOf` in `drop.js`), and `kicked()` as a last safety net. The
+  "never flings" test in `tipping.test.js` guards all of it.
+- `window.__perf` (dev only) holds the smoothed step / draw cost of a frame in ms.
 
 ## Supabase (run logs + leaderboard)
 `src/lib/telemetry.js` sends one `runs` row at game over and reads the `leaderboard` / `player_bests` views (one row per anonymous player, keyed by a SHA-256 tag of the browser's random id); schema and RLS in
 `supabase/migrations/` (applied to production by the Supabase GitHub integration on merge to main; or paste into the SQL Editor). Keys come from `.env.local`
 (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, see `.env.example`); with no keys it silently does nothing, and the dev server never logs (`VITE_TELEMETRY_DEV=1` to test it).
-Scores are client-reported, so the board is cheatable — fine for now.
+Scores are client-reported, so the board is cheatable; triggers in `20261020000000_feedback_and_guards.sql`
+reject runs whose scores don't add up or aren't physically plausible, and rate-limit runs and reports
+(per browser and globally). Nicknames are automatic (`user` + 4 digits from the browser id).

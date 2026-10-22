@@ -13,8 +13,6 @@ const supabase = URL && KEY && !OFF_IN_DEV ? createClient(URL, KEY, { auth: { pe
 export const telemetryEnabled = Boolean(supabase);
 
 const PLAYER_KEY = "stairstack.player";
-const NAME_KEY = "stairstack.name";
-const NAME_MAX = 16;
 
 function read(key) {
   try {
@@ -42,17 +40,19 @@ function playerId() {
   return id;
 }
 
-// Players who never type a nickname still get a stable one of their own, made from their id.
-export const defaultName = () => `Climber-${playerId().slice(0, 4).toUpperCase()}`;
-export const getName = () => read(NAME_KEY) || "";
-export const setName = (name) => write(NAME_KEY, name.trim().slice(0, NAME_MAX));
+// Nobody types a nickname: each browser is "user" and four digits made from its random id, the
+// same every visit. Nothing to moderate on a public board, and nothing personal in it.
+export function playerName() {
+  const hex = playerId().replace(/-/g, "").slice(0, 8);
+  return `user${String(Number.parseInt(hex, 16) % 10000).padStart(4, "0")}`;
+}
 
 // Send one finished run. `s` is engine.stats() at game over; `timeline` is [{t, h, lava}] samples.
 export async function submitRun(s, timeline) {
   if (!supabase) return false;
   const { error } = await supabase.from("runs").insert({
     player_id: playerId(),
-    name: getName() || defaultName(),
+    name: playerName(),
     score: s.score,
     time_score: s.timeScore,
     height_score: s.heightScore,
@@ -89,4 +89,25 @@ export async function fetchLeaderboard(limit = 10) {
   ]);
   if (top.error) console.warn("STAIRSTACK: leaderboard unavailable", top.error.message);
   return { top: top.data ?? [], me: mine.data ?? null };
+}
+
+// Send a bug report or an idea. `context` is a snapshot of the run it was written in. Resolves to
+// "sent", "limited" (the rate guard turned it away), "failed", or "offline" (no Supabase here).
+export async function submitFeedback(kind, message, context) {
+  if (!supabase) return "offline";
+  const { error } = await supabase.from("feedback").insert({
+    player_id: playerId(),
+    kind,
+    message: message.slice(0, 2000),
+    context: {
+      ...context,
+      viewport: [window.innerWidth, window.innerHeight],
+      locale: navigator.language,
+      ua: navigator.userAgent.slice(0, 200),
+      url: location.pathname,
+    },
+  });
+  if (!error) return "sent";
+  console.warn("STAIRSTACK: report not saved", error.message);
+  return /rate limit/.test(error.message) ? "limited" : "failed";
 }

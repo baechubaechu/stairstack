@@ -24,7 +24,7 @@ import useCanvasSize from "@/components/game/useCanvasSize";
 import { MONO, roundRect } from "@/lib/game/canvas";
 import {
   CHARACTER,
-  COMPASS,
+
   DROP_Y,
   EDGE_LINE,
   FACES,
@@ -33,8 +33,10 @@ import {
   VIEW_BOTTOM,
   VIEW_FOLLOW,
 } from "@/lib/game/constants";
-import { faceU } from "@/lib/game/elevation";
+import { faceU, memberVertices } from "@/lib/game/elevation";
+import { convexHull } from "@/lib/game/hull";
 import { ACCENT, ACCENT_SOFT, BLOCK, BLOCK_RGB, CLIMBER_GUIDE, INK, INK_SOFT, PAPER } from "@/lib/game/palette";
+import { t as tr } from "@/lib/i18n";
 
 // Visible elevation window at the start of a run, in metres. It reaches just past the release
 // height, so a dropping member is on screen from the top of its fall.
@@ -47,6 +49,56 @@ const SIDES = [-1, 1];
 const CAM_RATE = 4;
 // The drafting grid, laid faintly over the sky so the sheet still reads as a drawing.
 const SKY_GRID = "rgba(255,255,255,0.22)";
+
+// The freeze-frame after a game over: the path the climber took over their last few seconds on
+// this face, a pulsing ring where they went down, and — if a member came down on them — that
+// member picked out in red.
+function drawDeath(ctx, eng, X, Y, scale, time) {
+  const d = eng.death;
+  const pts = eng.trail.filter((p) => p.face === d.face);
+  if (pts.length > 1) {
+    ctx.save();
+    ctx.setLineDash([2, 4]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(${BLOCK_RGB},0.75)`;
+    ctx.beginPath();
+    pts.forEach((p, i) => (i ? ctx.lineTo(X(p.x), Y(p.feet + 0.1)) : ctx.moveTo(X(p.x), Y(p.feet + 0.1))));
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (d.killer >= 0 && eng.members[d.killer]) {
+    const verts = memberVertices(eng.members[d.killer]);
+    const f = FACES[d.face];
+    const hull = convexHull(verts.map((v) => [faceU(f, v), v[1]]));
+    ctx.save();
+    ctx.beginPath();
+    hull.forEach((p, i) => (i ? ctx.lineTo(X(p[0]), Y(p[1])) : ctx.moveTo(X(p[0]), Y(p[1]))));
+    ctx.closePath();
+    ctx.fillStyle = `rgba(${BLOCK_RGB},0.25)`;
+    ctx.fill();
+    ctx.strokeStyle = BLOCK;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+  const cx = X(d.x);
+  const cy = Y(d.feet + CHARACTER.h / 2);
+  const pulse = 0.5 + 0.5 * Math.sin(time * 5);
+  ctx.save();
+  ctx.strokeStyle = BLOCK;
+  ctx.lineWidth = 2.5;
+  ctx.globalAlpha = 0.9;
+  ctx.beginPath();
+  ctx.arc(cx, cy, scale * (0.9 + 0.25 * pulse), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.font = `bold 11px ${MONO}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "bottom";
+  ctx.fillStyle = BLOCK;
+  haloText(ctx, tr("canvas.died"), cx, cy - scale * 1.25);
+  ctx.restore();
+}
 
 // The tip forecast on the member in flight: a curved arrow over its end on side `dir` (+1 right,
 // −1 left), sweeping out and down the way that end will go.
@@ -290,7 +342,7 @@ export default function ElevationView({ engineRef }) {
     ctx.fillStyle = "#fff4d6";
     ctx.textAlign = "right";
     ctx.textBaseline = "top";
-    ctx.fillText("LAVA", X(GROUND_HALF) - 4, Y(lv) + 6);
+    ctx.fillText(tr("canvas.lava"), X(GROUND_HALF) - 4, Y(lv) + 6);
 
     if (proj) {
       drawDust(ctx, dust, X, Y, scale);
@@ -314,6 +366,8 @@ export default function ElevationView({ engineRef }) {
       ctx.textBaseline = "middle";
       ctx.fillStyle = INK;
       haloText(ctx, `${feet.toFixed(1)} m`, X(c.x) + CHARACTER.w * scale * 0.85, Y(c.y + c.hh * 0.2));
+
+      if (eng.death && eng.death.face === shown.id) drawDeath(ctx, eng, X, Y, scale, t);
     }
 
     // the place the climber would have stepped onto on the face that turned them around —
@@ -340,7 +394,7 @@ export default function ElevationView({ engineRef }) {
       ctx.font = `bold 9px ${MONO}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
-      ctx.fillText("TAKEN", X(info.entry), by - 3);
+      ctx.fillText(tr("canvas.taken"), X(info.entry), by - 3);
       ctx.restore();
     }
     ctx.restore();
@@ -352,8 +406,8 @@ export default function ElevationView({ engineRef }) {
       ctx.fillStyle = `rgba(${BLOCK_RGB},${(0.11 * jolt).toFixed(3)})`;
       ctx.fillRect(0, 0, w, h);
       const off = info && info.back ? info.to : eng?.blockedView?.to;
-      const label = FACES[off ?? eng.face].label;
-      const text = `${label} FACE BLOCKED — ${info && info.back ? "TURNING BACK" : "TURNED BACK"}`;
+      const face = tr(`face.${off ?? eng.face}`);
+      const text = tr(info && info.back ? "canvas.blockedTurning" : "canvas.blockedTurned", { face });
       ctx.font = `bold 13px ${MONO}`;
       const tw = ctx.measureText(text).width;
       ctx.fillStyle = BLOCK;
@@ -374,9 +428,9 @@ export default function ElevationView({ engineRef }) {
       ctx.fillStyle = INK_SOFT;
       ctx.textBaseline = "bottom";
       ctx.textAlign = "left";
-      haloText(ctx, `← ${COMPASS[FACES[f.left].compass]}`, X(-GROUND_HALF) + 4, at);
+      haloText(ctx, `← ${tr(`compass.${FACES[f.left].compass}`)}`, X(-GROUND_HALF) + 4, at);
       ctx.textAlign = "right";
-      haloText(ctx, `${COMPASS[FACES[f.right].compass]} →`, X(GROUND_HALF) - 4, at);
+      haloText(ctx, `${tr(`compass.${FACES[f.right].compass}`)} →`, X(GROUND_HALF) - 4, at);
       ctx.textAlign = "left";
     }
   });

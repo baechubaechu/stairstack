@@ -1,3 +1,4 @@
+import { t as tr } from "@/lib/i18n";
 // The elevation's scenery: a dusk sky with a far skyline, the foundation drawn as an
 // architectural section, and the lava — its glow, its rolling surface and the embers it throws.
 // Decorative only: the lava's height comes from the engine; its waves are drawn, not simulated.
@@ -166,7 +167,7 @@ export function drawLavaBelow(ctx, X, Y, view, level, feet, mono) {
   g.addColorStop(1, "rgba(255,150,60,0)");
   ctx.fillStyle = g;
   ctx.fillRect(X(view.xMin), bottom - band, X(view.xMax) - X(view.xMin), band);
-  const text = `LAVA ↓ ${Math.max(0, feet - level).toFixed(1)} m BELOW`;
+  const text = tr("canvas.lavaBelow", { m: Math.max(0, feet - level).toFixed(1) });
   ctx.font = `bold 11px ${mono}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "bottom";
