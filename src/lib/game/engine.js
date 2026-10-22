@@ -296,6 +296,10 @@ export function createEngine(RAPIER, input) {
       if (forecastMemo.key !== key) forecastMemo = { key, value: forecastTip(g, p) };
       return forecastMemo.value;
     },
+    // Hold the lava where it is (true) or let it go on rising (false); see advanceRun.
+    holdLava(on) {
+      state.lavaHeld = Boolean(on);
+    },
     placement: () => placement(g),
     viewFor: (faceId) => viewFor(g, faceId),
     charWorld: () => charWorld(g),

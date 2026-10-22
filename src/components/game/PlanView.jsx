@@ -54,6 +54,17 @@ function drawArrow(ctx, x0, y0, x1, y1, ink) {
 
 const id = (v) => v;
 
+// The top of the highest floor slab the climber has stood on (made solid), or null if none yet.
+function securedFloor(eng) {
+  let top = null;
+  for (const m of eng.members) {
+    if (!m.floor?.active) continue;
+    const y = m.body.translation().y + m.hy;
+    if (top == null || y > top) top = y;
+  }
+  return top;
+}
+
 // A screen-space polygon traced through the camera.
 function tracePts(ctx, pts) {
   ctx.beginPath();
@@ -107,6 +118,63 @@ function drawBox(ctx, cam, verts, { type, hex, alpha = 1, dash = null }) {
     }
   }
   ctx.restore();
+}
+
+// The work plane at height `rise`: the placing grid, the near edge (the face being read) inked in,
+// and the compass letters. On the ground, or on the deck of the highest storey secured.
+function drawWorkPlane(ctx, cam, rise, H, face) {
+  const cells = Math.round((H * 2) / CELL);
+  ctx.strokeStyle = GRID;
+  for (const metre of [false, true]) {
+    ctx.lineWidth = metre ? 1 : 0.5;
+    ctx.globalAlpha = metre ? 1 : 0.55;
+    ctx.beginPath();
+    for (let i = 0; i <= cells; i++) {
+      const g = -H + i * CELL;
+      if (metre !== Number.isInteger(g)) continue;
+      for (const [a, b] of [
+        [cam.project(g, rise, -H), cam.project(g, rise, H)],
+        [cam.project(-H, rise, g), cam.project(H, rise, g)],
+      ]) {
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+      }
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // the face being read is the plate's near edge: inked in along the work plane
+  const near = (() => {
+    const t = [Math.sin(cam.yaw), Math.cos(cam.yaw)]; // toward the viewer, in x / z
+    const ux = Math.cos(cam.yaw);
+    const uz = -Math.sin(cam.yaw);
+    const mid = [t[0] * H, t[1] * H];
+    return [cam.project(mid[0] - ux * H, rise, mid[1] - uz * H), cam.project(mid[0] + ux * H, rise, mid[1] + uz * H)];
+  })();
+  ctx.strokeStyle = ACCENT;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(near[0].x, near[0].y);
+  ctx.lineTo(near[1].x, near[1].y);
+  ctx.stroke();
+
+  // the compass on the work plane, the side being read picked out
+  ctx.font = `bold 11px ${MONO}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const inset = H - 0.35;
+  for (const [label, px, pz] of [
+    ["N", 0, -inset],
+    ["S", 0, inset],
+    ["W", -inset, 0],
+    ["E", inset, 0],
+  ]) {
+    const p = cam.project(px, rise, pz);
+    ctx.fillStyle = label === face.compass ? ACCENT : INK_FAINT;
+    ctx.fillText(label, p.x, p.y);
+  }
+
 }
 
 // TOP VIEW — the same rigid bodies seen in perspective from above, from the side the elevation
@@ -184,10 +252,14 @@ export default function PlanView({ engineRef, onDrop }) {
     // the camera: turned to the face being read, risen with the climber like the elevation
     const goalYaw = eng ? yawFor(eng) : 0;
     yawRef.current = yawRef.current == null ? goalYaw : easeYaw(yawRef.current, goalYaw, Math.min(1, dt * TURN_RATE));
-    const goalRise = Math.max(0, feet - VIEW_FOLLOW);
+    // Once a storey is secured, its deck is the floor of the plan: the camera won't sink below it,
+    // and the plan is drawn on it (everything under it hidden but for its gap).
+    const floorTop = eng ? securedFloor(eng) : null;
+    const goalRise = Math.max(0, feet - VIEW_FOLLOW, floorTop ?? 0);
     riseRef.current += (goalRise - riseRef.current) * Math.min(1, dt * RISE_RATE);
     const rise = riseRef.current;
-    const cam = createCamera(yawRef.current, rise, w, h, GROUND_HALF);
+    // the site is framed inside the window, clear of its leaning pillars
+    const cam = createCamera(yawRef.current, rise, w, h, GROUND_HALF, 0.88, { x: w * 0.035, bottom: 0 });
     camRef.current = cam;
     const H = GROUND_HALF;
 
@@ -203,71 +275,24 @@ export default function PlanView({ engineRef, onDrop }) {
       tracePts(ctx, flatRect(cam, -H, -H, H, H, rise));
       ctx.fill();
     }
-    const cells = Math.round((H * 2) / CELL);
-    ctx.strokeStyle = GRID;
-    for (const metre of [false, true]) {
-      ctx.lineWidth = metre ? 1 : 0.5;
-      ctx.globalAlpha = metre ? 1 : 0.55;
-      ctx.beginPath();
-      for (let i = 0; i <= cells; i++) {
-        const g = -H + i * CELL;
-        if (metre !== Number.isInteger(g)) continue;
-        for (const [a, b] of [
-          [cam.project(g, rise, -H), cam.project(g, rise, H)],
-          [cam.project(-H, rise, g), cam.project(H, rise, g)],
-        ]) {
-          ctx.moveTo(a.x, a.y);
-          ctx.lineTo(b.x, b.y);
-        }
-      }
-      ctx.stroke();
-    }
-    ctx.globalAlpha = 1;
-
-    // the face being read is the plate's near edge: inked in along the work plane
     const face = FACES[eng?.face ?? "front"];
-    const near = (() => {
-      const t = [Math.sin(cam.yaw), Math.cos(cam.yaw)]; // toward the viewer, in x / z
-      const ux = Math.cos(cam.yaw);
-      const uz = -Math.sin(cam.yaw);
-      const mid = [t[0] * H, t[1] * H];
-      return [cam.project(mid[0] - ux * H, rise, mid[1] - uz * H), cam.project(mid[0] + ux * H, rise, mid[1] + uz * H)];
-    })();
-    ctx.strokeStyle = ACCENT;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(near[0].x, near[0].y);
-    ctx.lineTo(near[1].x, near[1].y);
-    ctx.stroke();
-
-    // the compass on the work plane, the side being read picked out
-    ctx.font = `bold 11px ${MONO}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    const inset = H - 0.35;
-    for (const [label, px, pz] of [
-      ["N", 0, -inset],
-      ["S", 0, inset],
-      ["W", -inset, 0],
-      ["E", inset, 0],
-    ]) {
-      const p = cam.project(px, rise, pz);
-      ctx.fillStyle = label === face.compass ? ACCENT : INK_FAINT;
-      ctx.fillText(label, p.x, p.y);
-    }
+    // with no storey secured yet, the work plane is drawn now, under everything
+    if (floorTop == null) drawWorkPlane(ctx, cam, rise, H, face);
 
     if (!eng) return;
 
     // Contact shadows on the ground: each member's footprint, darker the closer it sits to it.
+    const ground = floorTop ?? 0;
     for (const m of eng.members) {
       if (m.floor) continue;
       const vs = memberVertices(m);
       const ys = vs.map((p) => p[1]);
       const lo = Math.min(...ys);
-      const bottom = vs.filter((p) => p[1] < lo + 0.2).map((p) => cam.project(p[0], 0, p[2]));
+      if (lo < ground - 0.05) continue; // under the deck: hidden, and no shadow on it
+      const bottom = vs.filter((p) => p[1] < lo + 0.2).map((p) => cam.project(p[0], ground, p[2]));
       if (bottom.length < 3) continue;
       const hull = bottom;
-      ctx.fillStyle = `rgba(${SHADOW},${Math.max(0.04, 0.2 - 0.03 * lo).toFixed(3)})`;
+      ctx.fillStyle = `rgba(${SHADOW},${Math.max(0.04, 0.2 - 0.03 * (lo - ground)).toFixed(3)})`;
       ctx.beginPath();
       // the bottom corners of a box are at most four: sorting them round their centre traces it
       const cx = hull.reduce((s, p) => s + p.x, 0) / hull.length;
@@ -289,7 +314,14 @@ export default function PlanView({ engineRef, onDrop }) {
     });
     boxes.sort((a, b) => b.depth - a.depth || a.top - b.top);
 
-    const drawOne = ({ m, verts }) => {
+    const drawOne = ({ m, verts }, faint) => {
+      if (faint) {
+        ctx.save();
+        ctx.globalAlpha = 0.45;
+        drawOne({ m, verts }, false);
+        ctx.restore();
+        return undefined;
+      }
       if (m.stone) return drawBox(ctx, cam, verts, { type: "basalt", hex: m.hex });
       if (m.floor && !m.floor.active) {
         // pencilled: out of sight until the climber nears it, then fading in, outline first —
@@ -313,8 +345,12 @@ export default function PlanView({ engineRef, onDrop }) {
       }
       return drawBox(ctx, cam, verts, { type: m.type.id, hex: m.hex });
     };
-    for (const b of boxes) if (b.top <= lava) drawOne(b);
-    if (lava > -0.25) {
+    // under the highest secured deck: drawn faint, then covered by the deck itself — only what
+    // shows through its gap is left
+    const deck = floorTop == null ? null : boxes.find((b) => b.m.floor?.active && Math.abs(b.top - floorTop) < 0.01);
+    const under = (b) => floorTop != null && b !== deck && b.top <= floorTop + 0.02;
+    const drawLava = () => {
+      if (lava <= -0.25) return;
       const k = Math.min(1, (lava + 0.25) / 0.25);
       ctx.save();
       ctx.globalAlpha = 0.82 * k;
@@ -328,8 +364,18 @@ export default function PlanView({ engineRef, onDrop }) {
       ctx.fillStyle = g;
       ctx.fill();
       ctx.restore();
+    };
+    const lavaUnder = floorTop != null && lava < floorTop;
+    for (const b of boxes) if (under(b) && b.top <= lava) drawOne(b, true);
+    if (lavaUnder) drawLava();
+    for (const b of boxes) if (under(b) && b.top > lava) drawOne(b, true);
+    if (deck) {
+      drawOne(deck);
+      drawWorkPlane(ctx, cam, floorTop, H, face);
     }
-    for (const b of boxes) if (b.top > lava) drawOne(b);
+    for (const b of boxes) if (!under(b) && b !== deck && b.top <= lava) drawOne(b);
+    if (!lavaUnder) drawLava();
+    for (const b of boxes) if (!under(b) && b !== deck && b.top > lava) drawOne(b);
 
     // the climber, on the near face: a dashed line across the plate where their column is, and
     // their figure standing at its near end

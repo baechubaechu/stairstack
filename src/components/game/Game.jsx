@@ -1,23 +1,48 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import GameBar from "@/components/game/GameBar";
-import NowNext from "@/components/game/NowNext";
-import NextQueue from "@/components/game/NextQueue";
-import ViewFrame from "@/components/game/ViewFrame";
 import PlanView from "@/components/game/PlanView";
 import ElevationView from "@/components/game/ElevationView";
 import FaceIndicator from "@/components/game/FaceIndicator";
 import { FrameContext } from "@/components/game/frame";
-import GameOverOverlay from "@/components/game/GameOverOverlay";
+import NewsOverlay from "@/components/game/NewsOverlay";
 import StartOverlay from "@/components/game/StartOverlay";
 import PauseOverlay from "@/components/game/PauseOverlay";
 import ReportDialog from "@/components/game/ReportDialog";
 import MobileGate, { isTouchOnly } from "@/components/game/MobileGate";
+import GuideBubble from "@/components/game/GuideBubble";
+import FloorBanner from "@/components/game/FloorBanner";
+import BossSubtitle from "@/components/game/BossSubtitle";
+import CabRoof from "@/components/game/CabRoof";
+import CabConsole from "@/components/game/CabConsole";
+import MaterialQueue from "@/components/game/MaterialQueue";
+import CabWindow from "@/components/game/CabWindow";
+import DroneMonitor from "@/components/game/DroneMonitor";
+import Talk from "@/components/game/Talk";
+import { useGuide } from "@/components/game/guide";
 import { FACES, LAVA_START, SPAWN } from "@/lib/game/constants";
 import * as music from "@/lib/game/music";
 import { getLang, t, useLang } from "@/lib/i18n";
 import { fetchLeaderboard, submitRun, track, trackError, trackOnExit, trackVisit, watchErrors } from "@/lib/telemetry";
 
 const TIMELINE_EVERY = 5; // seconds between run-log samples
+// The game-over beat before the news (ms): when the drone's photo is taken, and when the news comes
+// up. A lava death waits for the sinking and the thumb (see art/crane.js); a hit is quick.
+const SNAP_LAVA_MS = 2100;
+const SHOW_LAVA_MS = 3200;
+const SNAP_HEAD_MS = 60;
+const SHOW_HEAD_MS = 900;
+const BEST_KEY = "stairstack.best";
+
+// The drone's frame, cut down to the drawn window (no paper margins), as a JPEG for the news.
+function cropToWindow(canvas) {
+  if (!canvas) return null;
+  const [x, y, w, h] = (canvas.dataset.window ?? "").split(",").map(Number);
+  if (!(w > 0 && h > 0)) return canvas.toDataURL("image/jpeg", 0.85);
+  const out = document.createElement("canvas");
+  out.width = w;
+  out.height = h;
+  out.getContext("2d").drawImage(canvas, x, y, w, h, 0, 0, w, h);
+  return out.toDataURL("image/jpeg", 0.85);
+}
 const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, timeScore: 0, heightScore: 0, best: 0, time: 0, lava: LAVA_START, dropped: 0, turns: 0, floors: 0, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "slab", nextIds: ["plank", "block", "step"] };
 const snap = (s) =>
   `${s.score}|${s.time.toFixed(1)}|${s.lava.toFixed(2)}|${s.members}|${s.top.toFixed(1)}|${s.x.toFixed(2)}|${s.yaw.toFixed(3)}|${s.cause}|${s.mode}|${s.paused}|${s.face}|${s.nowId}|${s.nextIds.join(",")}`;
@@ -222,6 +247,59 @@ export default function Game() {
     // one submission per game over; `stats` changes every tick but `over` only flips once
   }, [stats.over]);
 
+  // The game over plays out before the news: a lava death sinks in with a thumb up first. The
+  // drone's frame becomes the news photo — once the thumb is up for the lava, at once for a hit.
+  // A click skips straight to the news.
+  const photoRef = useRef(null);
+  const [news, setNews] = useState(null); // { photo, show, best }
+  useEffect(() => {
+    if (!stats.over) {
+      setNews(null);
+      return undefined;
+    }
+    const lava = stats.cause === "lava";
+    let prev = 0;
+    try {
+      prev = Number(localStorage.getItem(BEST_KEY)) || 0;
+    } catch {
+      // no storage: every run is a personal best
+    }
+    const best = stats.score > prev;
+    if (best) {
+      try {
+        localStorage.setItem(BEST_KEY, String(stats.score));
+      } catch {
+        // the best just won't be remembered
+      }
+    }
+    const state = { photo: null, show: false, best };
+    setNews({ ...state });
+    const snap = () => {
+      if (state.photo) return;
+      try {
+        state.photo = cropToWindow(photoRef.current);
+      } catch {
+        state.photo = null;
+      }
+    };
+    const show = () => {
+      snap();
+      state.show = true;
+      setNews({ ...state });
+    };
+    const t1 = setTimeout(snap, lava ? SNAP_LAVA_MS : SNAP_HEAD_MS);
+    const t2 = setTimeout(show, lava ? SHOW_LAVA_MS : SHOW_HEAD_MS);
+    window.addEventListener("pointerdown", show, { once: true });
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      window.removeEventListener("pointerdown", show);
+    };
+    // once per game over
+  }, [stats.over]);
+
+  const guide = useGuide(engineRef, stats);
+
   const toggleMute = useCallback(() => {
     music.setMuted(!muted);
     setMuted(!muted);
@@ -286,8 +364,11 @@ export default function Game() {
 
   return (
     <FrameContext.Provider value={subscribeFrame}>
-      <div data-engine={engineState} className="flex min-h-[100dvh] w-full flex-col overflow-hidden bg-paper text-foreground lg:h-[100dvh]">
-        <GameBar
+      <div
+        data-engine={engineState}
+        className="flex min-h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_top,#e3e5e7,#c9cdd1_55%,#b3b8bd)] text-foreground lg:h-[100dvh]"
+      >
+        <CabRoof
           stats={stats}
           engineState={engineState}
           onTogglePause={togglePause}
@@ -296,48 +377,40 @@ export default function Game() {
           onToggleMute={toggleMute}
           onReport={openReport}
         />
-  
-        <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto p-3 lg:grid-cols-[1fr_auto_1.02fr] lg:overflow-hidden">
-          <ViewFrame
-            title={t("view.elevation")}
-            hint={t("view.elevationHint", { face: t(`face.${stats.face}`), lava: stats.lava.toFixed(1) })}
+
+        <main className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto px-3 pb-2 lg:grid-cols-[1fr_1.04fr] lg:overflow-hidden">
+          <div className="flex min-h-0 min-w-0 flex-col gap-3">
+          <DroneMonitor
+            face={t(`face.${stats.face}`)}
+            side={t("view.viewedFrom", { side: t(`compass.${FACES[stats.face].compass}`) })}
+            glow={guide.target === "elevation"}
           >
-            <ElevationView engineRef={engineRef} />
-            <div className="pointer-events-none absolute right-2 top-2 flex flex-col items-center rounded-md border border-border bg-card/90 px-1.5 pb-1 shadow-sm">
+            <ElevationView engineRef={engineRef} snapRef={photoRef} />
+            {guide.target === "elevation" ? <GuideBubble guide={guide} /> : null}
+            <FloorBanner floors={stats.floors} height={stats.best} mode={stats.mode} />
+            <div className="pointer-events-none absolute right-3 top-3 rounded-md bg-black/35 p-1">
               <FaceIndicator engineRef={engineRef} />
-              <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-ochre">
-                {t(`face.${stats.face}`)}
-              </span>
-              <span className="font-mono text-[7px] uppercase tracking-[0.14em] text-muted-foreground">
-                {t("view.viewedFrom", { side: t(`compass.${FACES[stats.face].compass}`) })}
-              </span>
             </div>
-          </ViewFrame>
+          </DroneMonitor>
+          <MaterialQueue dropped={stats.dropped} />
+          </div>
 
-          <NextQueue ids={stats.nextIds} />
-
-          <ViewFrame
-            title={t("view.plan")}
-            hint={t("view.planHint")}
-            badge={
-              <span className="hidden font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground sm:inline">
-                {t("view.planBadge")}
-              </span>
-            }
-          >
+          <CabWindow glow={guide.target === "plan"}>
             <PlanView engineRef={engineRef} onDrop={push} />
+            {guide.target === "plan" ? <GuideBubble guide={guide} /> : null}
+            <BossSubtitle />
             {engineState !== "ready" ? (
-              <div className="absolute inset-0 flex items-center justify-center bg-card/80">
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/80">
                 <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                   {engineState === "failed" ? t("view.failed") : t("view.starting")}
                 </p>
               </div>
             ) : null}
-          </ViewFrame>
-  
+          </CabWindow>
         </main>
-  
-        <NowNext stats={stats} />
+
+        <CabConsole stats={stats} />
+        <Talk engineRef={engineRef} mode={stats.mode} over={stats.over} />
   
         {stats.mode === "menu" ? <StartOverlay engineState={engineState} onStart={startGame} /> : null}
         {stats.mode === "play" && stats.paused && !stats.over ? (
@@ -349,11 +422,25 @@ export default function Game() {
             muted={muted}
             onToggleMute={toggleMute}
             onReport={openReport}
+            onGuide={() => {
+              guide.restartGuide();
+              restart();
+            }}
           />
         ) : null}
         {touchGate ? <MobileGate onDismiss={() => setTouchGate(false)} /> : null}
         {reporting ? <ReportDialog context={reporting} onClose={() => setReporting(null)} /> : null}
-        {stats.over ? <GameOverOverlay stats={stats} death={engineRef.current?.death} board={board} onRetry={restart} onReport={openReport} /> : null}
+        {stats.over && news?.show ? (
+          <NewsOverlay
+            stats={stats}
+            death={engineRef.current?.death}
+            photo={news.photo}
+            board={board}
+            best={news.best}
+            onRetry={restart}
+            onReport={openReport}
+          />
+        ) : null}
       </div>
     </FrameContext.Provider>
   );

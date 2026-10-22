@@ -36,3 +36,15 @@
     @apply bg-background text-foreground font-body;
   }
 }
+
+/* the "floor secured" banner pops in */
+@keyframes floorIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+/* the news ticker crawls right to left */
+@keyframes tickerCrawl {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}

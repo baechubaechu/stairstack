@@ -34,9 +34,24 @@ it steps the engine, then every canvas draws via `useFrame` (`frame.js`). Canvas
 the engine never reads it). Every word on screen comes from `src/lib/i18n.js` (Korean default, English
 toggle): React reads it via `useLang()`, canvases call `t()` (imported as `tr` where `t` means time).
 `MobileGate.jsx` turns phones away, `ReportDialog.jsx` sends bug reports / ideas to Supabase.
+Game over is a news broadcast (`NewsOverlay.jsx`): `Game.jsx` waits out the death beat, crops the drone
+(elevation) canvas into the photo, then shows the breaking-news screen and the reporter's lines.
+`FloorBanner.jsx` announces each storey secured. `speech.js` holds who is talking (the worker: a bubble over
+their head in the elevation; the foreman — the player — a subtitle under the plan, `BossSubtitle.jsx`);
+`Talk.jsx` sets exchanges off from what happens on site (once per browser). The screen is one crane cab:
+`CabRoof.jsx` (ceiling switches), `DroneMonitor.jsx` (the elevation as the drone's monitor), `CabWindow.jsx`
+(the plan through the cab's front window), `MaterialQueue.jsx` (under the monitor: the member on
+the hook at the right, next to the plan, and the ones waiting to its left — keyed by drop order so each drop
+slides the line one place right), `CabConsole.jsx` (the control desk: a stick console at each end, the
+instrument panel — score, height vs lava, brake dial — between them). The story and its wording live in `docs/story-ko.md`.
+`guide.js` (`useGuide`) + `GuideBubble.jsx`: the first-run guide — steps drop → climb → lava warning over the
+view each is about (the screen's `glow`), the lava held (`engine.holdLava`) until the first two are done, then
+one-time tips (edge turn, tip arrow, floor slab). Remembered in localStorage; the pause menu restarts it.
 `src/components/game/art/` — decoration only, never read by the engine: `materials.js` (per-type member
 textures, top-lit shading, contact shadows), `scene.js` (dusk sky, foundation section, lava surface/glow/
-embers, plan-view lava), `climber.js` (the hard-hat figure, its poses, landing dust). Render-side
+embers, plan-view lava, the erupting volcano and a far crane), `climber.js` (the hard-hat figure, its poses,
+landing dust), `crane.js` (the crane cable / hook / failing-brake sparks over the member in play, the drone
+HUD, the lava death's thumbs-up and last words). Render-side
 randomness (embers, dust) is fine there; the engine itself must stay deterministic.
 
 ## Conventions

@@ -20,8 +20,9 @@ export function easeYaw(from, to, k) {
 }
 
 // A camera at turn `yaw`, centred on the plate at height `target`, fitted so the plate (at that
-// height) fills `fill` of a w × h canvas. `half` is the plate's half width.
-export function createCamera(yaw, target, w, h, half, fill = 0.88) {
+// height) fills `fill` of the part of a w × h canvas left clear by `inset` ({ x, bottom }, pixels
+// hidden at each side and along the bottom — by the crane cab). `half` is the plate's half width.
+export function createCamera(yaw, target, w, h, half, fill = 0.88, inset = { x: 0, bottom: 0 }) {
   // the elevation's screen-x (u) and the direction toward the viewer (t), in plan x / z
   const ux = Math.cos(yaw);
   const uz = -Math.sin(yaw);
@@ -52,9 +53,11 @@ export function createCamera(yaw, target, w, h, half, fill = 0.88) {
     y0 = Math.min(y0, sy);
     y1 = Math.max(y1, sy);
   }
-  const k = Math.min((w * fill) / (x1 - x0), (h * fill) / (y1 - y0));
+  const cw = w - inset.x * 2;
+  const ch = h - inset.bottom;
+  const k = Math.min((cw * fill) / (x1 - x0), (ch * fill) / (y1 - y0));
   const ox = w / 2 - (k * (x0 + x1)) / 2;
-  const oy = h / 2 - (k * (y0 + y1)) / 2;
+  const oy = ch / 2 - (k * (y0 + y1)) / 2;
 
   return {
     yaw,

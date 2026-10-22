@@ -17,7 +17,11 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
 - A/D move, W/Space jump · Hold into an elevation edge 0.1 s: turn to the next face · Esc: pause (opens the pause menu: resume, restart — two clicks —, music volume / mute, the controls guide)
 - Jump feel: coyote time, jump buffer, fresh-press only, tap = low hop / hold = full jump, apex hang,
   heavier fall; running accelerates/decelerates; ledges up to 0.35 m are walked up (step-up).
-- Layout: elevation left, plan right; between them a column of the next QUEUE_AHEAD (3) members, nearest on top; the member in play is in the footer (NOW)
+- Layout: one crane cab — the drone's monitor (elevation) top left, the cab's front window (plan) the
+  whole right side, the ceiling switches above. Under the monitor the material line: the member on the
+  hook at its right end beside the plan, the next three to its left, sliding right one place per drop.
+  Along the bottom the control desk: a stick console at each end, the instruments between (score, worker
+  height vs lava and floors secured, the brake's slip dial)
 
 ## Current game state (as built on Base44, now developed here)
 1. Top view + elevation, face widget (3D cube showing the viewed face), compass N/E/S/W. The top view
@@ -45,10 +49,23 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
    with the link to copy. Anonymous run logs + leaderboard + in-game bug / idea reports go to Supabase
    (guarded against doctored scores and spam). Visits, run starts, abandoned runs and errors are logged
    too (`events`), so the funnel reads visitors → players → finished runs; share links with
-   `?utm_source=instagram` (etc.) to see where visitors came from. Game over explains what happened (the lava out-climbing
+   `?utm_source=instagram` (etc.) to see where visitors came from.
+6. First-run guide: the start screen is just a title, one line and Game Start (controls cards behind a
+   toggle, and in the pause menu). In the first run a prompt over the plan asks for a drop, then one
+   over the elevation asks for a climb onto a member — the lava is held still until both are done —
+   then the lava is let go with a warning. Later tips show once each: walking off an edge turns the
+   tower, the tip arrow, the dotted floor slab's gap. Skippable; "show the guide again" in the pause
+   menu. Progress is logged as `guide` events (`beta_guide` view). Game over explains what happened (the lava out-climbing
    you, or which member hit you) and can show the freeze-frame: the last seconds' path, the spot, the
    member. Link preview: `public/og.jpg` + Open Graph tags in `index.html` (stairstack.vercel.app).
    Music: made with Suno (free plan → non-commercial, credited on the start screen).
+
+7. Story (see `docs/story-ko.md`): a volcano erupts under a tower construction site; the player is the
+   tower-crane operator, the climber a worker stranded on site. The crane's brake failed (so members sink
+   on their own, faster as it worsens, and nobody can be lifted out), the elevation is a drone's camera.
+   Drawn: cable + hook over the member in play with judder and sparks, drone HUD, volcano and ash in the
+   sky, "floor N secured" banners. Game over: a lava death sinks with a thumb up and "I'll be back.", then
+   a news broadcast (breaking-news headline with the drone's photo, then a field reporter's account).
 
 ## Design history (why things are the way they are)
 - Problem: stacking on one side forms an easy staircase. Problem: you could clear without ever turning the

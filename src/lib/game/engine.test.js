@@ -96,6 +96,19 @@ describe("engine", () => {
     expect(engine.placement().y).toBeCloseTo(DROP_Y + rise, 5);
   });
 
+  it("keeps the lava still while it is held, and lets it rise once released", () => {
+    engine.start();
+    engine.holdLava(true);
+    run(12); // well past LAVA_DELAY
+    expect(engine.stats().lava).toBe(LAVA_START);
+    expect(engine.stats().time).toBeGreaterThan(11); // the run itself carries on
+    engine.holdLava(false);
+    run(4);
+    expect(engine.stats().lava).toBe(LAVA_START); // the opening grace starts from the release
+    run(3);
+    expect(engine.stats().lava).toBeGreaterThan(LAVA_START);
+  });
+
   it("holds the whole run still while paused", () => {
     engine.start();
     run(0.5);

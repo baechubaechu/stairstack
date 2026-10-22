@@ -9,7 +9,7 @@ const CONFIRM_MS = 3000;
 // The pause menu, over a run held still by Esc or the Pause button: carry on, start over, set the
 // music, or look up the controls again. Esc (or Resume) closes it and the run picks up exactly
 // where it stopped.
-export default function PauseOverlay({ onResume, onRestart, volume, onVolume, muted, onToggleMute, onReport }) {
+export default function PauseOverlay({ onResume, onRestart, volume, onVolume, muted, onToggleMute, onReport, onGuide }) {
   const { lang, t, setLang } = useLang();
   // A restart throws the run away, so it takes a second click to be sure.
   const [confirming, setConfirming] = useState(false);
@@ -89,7 +89,12 @@ export default function PauseOverlay({ onResume, onRestart, volume, onVolume, mu
           </div>
         </section>
 
-        <h3 className="mt-5 font-mono text-[9px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{t("pause.controls")}</h3>
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <h3 className="font-mono text-[9px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">{t("pause.controls")}</h3>
+          <Button size="sm" variant="outline" data-testid="btn-pause-guide" onClick={onGuide}>
+            {t("pause.guide")}
+          </Button>
+        </div>
         <ControlsGuide className="mt-2" />
       </div>
     </div>

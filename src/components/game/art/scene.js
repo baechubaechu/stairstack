@@ -47,6 +47,9 @@ export function drawSky(ctx, X, Y, view, now, camY = 0) {
   ctx.arc(sx, sy, r, 0, Math.PI * 2);
   ctx.fill();
 
+  // the volcano waking up behind the city: a dark cone, its crater glowing, ash rolling off it
+  drawVolcano(ctx, X, Yb, now);
+
   // the far city, in haze
   ctx.fillStyle = "rgba(118,96,128,0.32)";
   for (const [x, w, h] of SKYLINE) ctx.fillRect(X(x), Yb(h), w * (X(1) - X(0)), Yb(0) - Yb(h));
@@ -61,6 +64,66 @@ export function drawSky(ctx, X, Y, view, now, camY = 0) {
       ctx.fillRect(wx, wy, 2, 2);
     }
   });
+}
+
+// The volcano under the city, far off to the left, and a neighbouring site's tower crane. Positions
+// in metres on the far plane (passed through the parallax `Yb`).
+const VOLCANO = { x: -4.2, half: 3.2, h: 3.4, crater: 0.55 };
+function drawVolcano(ctx, X, Yb, now) {
+  const { x, half, h, crater } = VOLCANO;
+  const t = now / 1000;
+  // ash plume: puffs drifting up and to the right, swelling and thinning as they go
+  for (let i = 0; i < 9; i++) {
+    const age = (t * 0.12 + i / 9) % 1;
+    const px = X(x + age * 2.6 + Math.sin(i * 1.7 + t * 0.3) * 0.25);
+    const py = Yb(h + 0.2 + age * 3.4);
+    const r = (X(1) - X(0)) * (0.35 + age * 0.9);
+    ctx.fillStyle = `rgba(92,80,88,${(0.32 * (1 - age)).toFixed(3)})`;
+    ctx.beginPath();
+    ctx.arc(px, py, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // the cone
+  ctx.fillStyle = "rgba(84,64,78,0.55)";
+  ctx.beginPath();
+  ctx.moveTo(X(x - half), Yb(0));
+  ctx.lineTo(X(x - crater), Yb(h));
+  ctx.lineTo(X(x + crater), Yb(h));
+  ctx.lineTo(X(x + half), Yb(0));
+  ctx.closePath();
+  ctx.fill();
+  // the crater's glow, pulsing, and a lava streak down one flank
+  const glow = 0.55 + 0.25 * Math.sin(t * 2.3);
+  const cg = ctx.createRadialGradient(X(x), Yb(h), 1, X(x), Yb(h), (X(1) - X(0)) * 1.4);
+  cg.addColorStop(0, `rgba(255,170,80,${glow.toFixed(3)})`);
+  cg.addColorStop(1, "rgba(255,120,60,0)");
+  ctx.fillStyle = cg;
+  ctx.fillRect(X(x - 1.6), Yb(h + 1.4), X(x + 1.6) - X(x - 1.6), Yb(h - 1.4) - Yb(h + 1.4));
+  ctx.strokeStyle = `rgba(255,140,60,${(0.5 + 0.2 * Math.sin(t * 1.7)).toFixed(3)})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(X(x + 0.2), Yb(h));
+  ctx.quadraticCurveTo(X(x + 0.9), Yb(h * 0.55), X(x + 1.5), Yb(h * 0.2));
+  ctx.stroke();
+
+  // a neighbouring site's tower crane, off to the right
+  const cx = 4.9;
+  ctx.strokeStyle = "rgba(70,66,84,0.45)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(X(cx), Yb(0));
+  ctx.lineTo(X(cx), Yb(5.2)); // mast
+  ctx.moveTo(X(cx - 1.0), Yb(5.2));
+  ctx.lineTo(X(cx + 2.4), Yb(5.2)); // jib and counter-jib
+  ctx.moveTo(X(cx), Yb(5.8));
+  ctx.lineTo(X(cx + 2.4), Yb(5.2)); // tie
+  ctx.moveTo(X(cx), Yb(5.8));
+  ctx.lineTo(X(cx - 1.0), Yb(5.2));
+  ctx.moveTo(X(cx + 1.9), Yb(5.2));
+  ctx.lineTo(X(cx + 1.9), Yb(4.3)); // its hook line
+  ctx.stroke();
+  ctx.fillStyle = "rgba(70,66,84,0.45)";
+  ctx.fillRect(X(cx - 0.95), Yb(5.2), X(0.5) - X(0), Yb(4.95) - Yb(5.2)); // counterweight
 }
 
 // The foundation, cut through: concrete with the diagonal hatching of a section drawing,

@@ -37,6 +37,20 @@ import { faceU, memberVertices } from "@/lib/game/elevation";
 import { convexHull } from "@/lib/game/hull";
 import { ACCENT, ACCENT_SOFT, BLOCK, BLOCK_RGB, CLIMBER_GUIDE, INK, INK_SOFT, PAPER } from "@/lib/game/palette";
 import { t as tr } from "@/lib/i18n";
+import { FALL_MAX } from "@/lib/game/constants";
+import { sinkFactor } from "@/lib/game/survival";
+import {
+  createCraneFx,
+  drawCrane,
+  drawDroneHud,
+  drawLastWords,
+  drawRetract,
+  drawSparks,
+  drawSpeechBubble,
+  drawThumbsUp,
+  stepCraneFx,
+} from "@/components/game/art/crane";
+import { speaking } from "@/components/game/speech";
 
 // Visible elevation window at the start of a run, in metres. It reaches just past the release
 // height, so a dropping member is on screen from the top of its fall.
@@ -49,6 +63,14 @@ const SIDES = [-1, 1];
 const CAM_RATE = 4;
 // The drafting grid, laid faintly over the sky so the sheet still reads as a drawing.
 const SKY_GRID = "rgba(255,255,255,0.22)";
+// The drone monitor's glass, around the picture where the window doesn't reach.
+const SCREEN = "#101316";
+
+// How badly the crane's brake is slipping: none at the start, all the way once members sink at
+// their fastest — the same ramp that speeds them up (survival.js).
+function strainOf(eng) {
+  return Math.min(1, (sinkFactor(eng.stats().time) - 1) / (FALL_MAX - 1));
+}
 
 // The freeze-frame after a game over: the path the climber took over their last few seconds on
 // this face, a pulsing ring where they went down, and — if a member came down on them — that
@@ -161,8 +183,10 @@ function memberImpacts(eng, lastVy, dust) {
 
 // ELEVATION — the silhouettes of the same rigid bodies, projected onto the face being read,
 // set against the sky with the lava climbing beneath them.
-export default function ElevationView({ engineRef }) {
+// `snapRef` is handed the canvas, so the game-over news can take its snapshot of the scene.
+export default function ElevationView({ engineRef, snapRef }) {
   const canvasRef = useRef(null);
+  if (snapRef) snapRef.current = canvasRef.current;
   const viewRef = useCanvasSize(canvasRef);
   const fx = useRef(null);
 
@@ -180,9 +204,11 @@ export default function ElevationView({ engineRef }) {
         anim: createClimberAnim(),
         lastVy: new WeakMap(),
         camY: 0,
+        crane: createCraneFx(),
       };
     }
-    const { embers, dust, anim, lastVy } = fx.current;
+    if (snapRef) snapRef.current = canvas;
+    const { embers, dust, anim, lastVy, crane } = fx.current;
     const t = now / 1000;
     const eng = engineRef.current;
 
@@ -196,7 +222,8 @@ export default function ElevationView({ engineRef }) {
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = PAPER;
+    // the monitor's dark glass around the picture
+    ctx.fillStyle = SCREEN;
     ctx.fillRect(0, 0, w, h);
 
     const spanX = view.xMax - view.xMin;
@@ -206,6 +233,10 @@ export default function ElevationView({ engineRef }) {
     const oy = (h - spanY * scale) / 2;
     const X = (x) => ox + (x - view.xMin) * scale;
     const Y = (y) => oy + (view.yMax - y) * scale;
+    // the drawn window, in canvas pixels — what the news photo is cropped to
+    canvas.dataset.window = [X(view.xMin), Y(view.yMax), X(view.xMax) - X(view.xMin), Y(view.yMin) - Y(view.yMax)]
+      .map((v) => Math.round(v * dpr))
+      .join(",");
     // whole metres inside the window, for the grid and its height captions
     const gyMin = Math.ceil(view.yMin);
     const gyMax = Math.floor(view.yMax);
@@ -229,6 +260,17 @@ export default function ElevationView({ engineRef }) {
       if (!turn) memberImpacts(eng, lastVy, dust);
       const c = eng.character;
       if (stepClimberAnim(anim, c, dt)) puff(dust, c.x, c.y - c.hh, 0.3, 7);
+      stepCraneFx(crane, dt, strainOf(eng), crane.hook);
+    }
+    // the hook lets go: when a member is released it springs back up the window
+    if (eng) {
+      const dropped = eng.stats().dropped;
+      if (crane.lastDropped != null && dropped > crane.lastDropped && crane.hook) {
+        crane.retract = { u: crane.hook.u, y: crane.hook.y, t: 0 };
+      }
+      crane.lastDropped = dropped;
+      if (!eng.death) crane.deathAt = null;
+      else if (crane.deathAt == null) crane.deathAt = now;
     }
 
     // A face the climber could not step onto folds straight back. It takes a jolt and a red
@@ -324,8 +366,12 @@ export default function ElevationView({ engineRef }) {
 
       // the member on its way down — drawn solid, dashed outline while it is in flight
       const act = proj.active;
+      if (!act || act.poly.length < 3) crane.hook = null;
+      drawRetract(ctx, X, Y, view, crane, scale);
       if (act && act.poly.length >= 3) {
         paintMember(ctx, act.poly, X, Y, { type: act.type, hex: act.hex, screenAngle: -act.angle, scale, dash: [6, 4] });
+        // it hangs from the crane — whose brake is going
+        crane.hook = drawCrane(ctx, act.poly, X, Y, view, crane, t, strainOf(eng), scale);
         // If it will tip across this face, a curved arrow off the end that goes down. A tip
         // toward or away from the viewer doesn't show here; the plan's arrow has it.
         const tip = shown.squash === 1 ? eng.tipForecast() : null;
@@ -337,6 +383,7 @@ export default function ElevationView({ engineRef }) {
     // the lava rolls over whatever it has closed over, and throws embers up the window
     drawLava(ctx, X, Y, view, lv, t);
     drawEmbers(ctx, embers, X, Y);
+    drawSparks(ctx, crane, X, Y);
     if (eng) drawLavaBelow(ctx, X, Y, view, lv, eng.character.y - eng.character.hh, MONO);
     ctx.font = `bold 10px ${MONO}`;
     ctx.fillStyle = "#fff4d6";
@@ -360,14 +407,33 @@ export default function ElevationView({ engineRef }) {
       ctx.stroke();
       ctx.restore();
 
-      drawClimber(ctx, X(c.x), Y(c.y - c.hh), scale, CHARACTER.h, anim, !c.grounded);
+      // Gone into the lava: they sink in, and a thumb comes back up through the surface.
+      const sinking = eng.death && eng.death.cause === "lava" && crane.deathAt != null;
+      const k = sinking ? (now - crane.deathAt) / 1000 : 0;
+      if (sinking) {
+        const down = Math.min(1, k / 1.3) * (CHARACTER.h + 0.15);
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(X(view.xMin), Y(view.yMax), X(view.xMax) - X(view.xMin), Y(lv) - Y(view.yMax));
+        ctx.clip();
+        drawClimber(ctx, X(c.x), Y(c.y - c.hh - down), scale, CHARACTER.h, anim, false);
+        ctx.restore();
+        drawThumbsUp(ctx, X(c.x), Y(lv), scale, k);
+        drawLastWords(ctx, X(c.x), Y(lv) - 0.45 * scale, tr("radio.illBeBack"), k);
+      } else {
+        drawClimber(ctx, X(c.x), Y(c.y - c.hh), scale, CHARACTER.h, anim, !c.grounded);
+      }
       ctx.font = `bold 10px ${MONO}`;
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.fillStyle = INK;
-      haloText(ctx, `${feet.toFixed(1)} m`, X(c.x) + CHARACTER.w * scale * 0.85, Y(c.y + c.hh * 0.2));
+      if (!sinking) haloText(ctx, `${feet.toFixed(1)} m`, X(c.x) + CHARACTER.w * scale * 0.85, Y(c.y + c.hh * 0.2));
 
-      if (eng.death && eng.death.face === shown.id) drawDeath(ctx, eng, X, Y, scale, t);
+      if (eng.death && eng.death.cause === "head" && eng.death.face === shown.id) drawDeath(ctx, eng, X, Y, scale, t);
+
+      // whatever the worker is saying, over their head
+      const said = !sinking && speaking("worker");
+      if (said) drawSpeechBubble(ctx, X(c.x), Y(c.y + c.hh + 0.15), said, w);
     }
 
     // the place the climber would have stepped onto on the face that turned them around —
@@ -432,6 +498,17 @@ export default function ElevationView({ engineRef }) {
       ctx.textAlign = "right";
       haloText(ctx, `${tr(`compass.${FACES[f.right].compass}`)} →`, X(GROUND_HALF) - 4, at);
       ctx.textAlign = "left";
+    }
+
+    // the drone's camera overlay
+    if (eng) {
+      const s = eng.stats();
+      drawDroneHud(ctx, w, h, {
+        alt: Math.max(0, eng.character.y - eng.character.hh) + 3,
+        battery: Math.max(0.12, 1 - s.time / 600),
+        time: t,
+        rec: s.mode === "play" && !s.over,
+      });
     }
   });
 

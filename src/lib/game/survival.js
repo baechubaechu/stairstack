@@ -27,6 +27,8 @@ export function resetRun(state) {
   state.heightScore = 0;
   state.score = 0;
   state.lava = LAVA_START;
+  state.lavaClock = 0;
+  state.lavaHeld = false;
   state.cause = null;
 }
 
@@ -45,8 +47,12 @@ export function advanceRun(state, dt) {
   state.elapsed += dt;
   state.timeScore = Math.floor(state.elapsed * SCORE_PER_SECOND);
   state.score = state.timeScore + state.heightScore;
-  // the lava waits out the opening, then rises at a pace that grows from the moment it moved
-  const rising = state.elapsed - LAVA_DELAY;
+  // The lava keeps its own clock, which stands still while it is held (the first-run guide holds
+  // it until the player has dropped a member and climbed onto one). It waits out the opening,
+  // then rises at a pace that grows from the moment it moved.
+  if (state.lavaHeld) return;
+  state.lavaClock += dt;
+  const rising = state.lavaClock - LAVA_DELAY;
   if (rising > 0) state.lava += (LAVA_SPEED + LAVA_ACCEL * rising) * Math.min(dt, rising);
 }
 
