@@ -67,3 +67,9 @@ randomness (embers, dust) is fine there; the engine itself must stay determinist
 Scores are client-reported, so the board is cheatable; triggers in `20261020000000_feedback_and_guards.sql`
 reject runs whose scores don't add up or aren't physically plausible, and rate-limit runs and reports
 (per browser and globally). Nicknames are automatic (`user` + 4 digits from the browser id).
+`events` (`20261022000000_events.sql`) holds the funnel around the runs: `visit` (device, screen, referrer,
+`?utm_source=`), `run_start`, `run_abandon` (restarted mid-run, or the tab closed — sent with a keepalive
+fetch), `error` (uncaught errors, engine boot, canvas draws; each distinct one once per page load).
+Read the beta in the dashboard through the `beta_daily`, `beta_deaths`, `beta_scores`, `beta_sources` and
+`beta_errors` views (not exposed to anon). To check what the client sends without touching production,
+point a dev server at a local stub: `VITE_TELEMETRY_DEV=1 VITE_SUPABASE_URL=http://127.0.0.1:<port>`.

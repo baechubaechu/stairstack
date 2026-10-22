@@ -43,7 +43,9 @@ walks/jumps on their silhouettes (platforms / ramps / ceilings). Top view = plac
 
 5. Beta (open, PC only): Korean UI by default (English toggle); phones get a "play on a computer" page
    with the link to copy. Anonymous run logs + leaderboard + in-game bug / idea reports go to Supabase
-   (guarded against doctored scores and spam). Game over explains what happened (the lava out-climbing
+   (guarded against doctored scores and spam). Visits, run starts, abandoned runs and errors are logged
+   too (`events`), so the funnel reads visitors → players → finished runs; share links with
+   `?utm_source=instagram` (etc.) to see where visitors came from. Game over explains what happened (the lava out-climbing
    you, or which member hit you) and can show the freeze-frame: the last seconds' path, the spot, the
    member. Link preview: `public/og.jpg` + Open Graph tags in `index.html` (stairstack.vercel.app).
    Music: made with Suno (free plan → non-commercial, credited on the start screen).

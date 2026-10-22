@@ -15,7 +15,7 @@ import MobileGate, { isTouchOnly } from "@/components/game/MobileGate";
 import { FACES, LAVA_START, SPAWN } from "@/lib/game/constants";
 import * as music from "@/lib/game/music";
 import { getLang, t, useLang } from "@/lib/i18n";
-import { fetchLeaderboard, submitRun } from "@/lib/telemetry";
+import { fetchLeaderboard, submitRun, track, trackError, trackOnExit, trackVisit, watchErrors } from "@/lib/telemetry";
 
 const TIMELINE_EVERY = 5; // seconds between run-log samples
 const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, timeScore: 0, heightScore: 0, best: 0, time: 0, lava: LAVA_START, dropped: 0, turns: 0, floors: 0, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "slab", nextIds: ["plank", "block", "step"] };
@@ -94,6 +94,7 @@ export default function Game() {
       } catch (err) {
         if (!cancelled) setEngineState("failed");
         console.error("STAIRSTACK engine failed to start", err);
+        trackError("engine", err);
       }
     })();
     return () => {
@@ -126,7 +127,10 @@ export default function Game() {
         try {
           draw(dt, now);
         } catch (err) {
-          if (!loggedRef.current) console.error("STAIRSTACK: a canvas failed to draw", err);
+          if (!loggedRef.current) {
+            console.error("STAIRSTACK: a canvas failed to draw", err);
+            trackError("canvas", err);
+          }
           loggedRef.current = true;
         }
       }
@@ -243,9 +247,27 @@ export default function Game() {
     setVolume(v);
   }, []);
 
+  // The beta's funnel: every run that starts, and every run thrown away before its game over —
+  // restarted, or left when the tab closed. (Finished runs go to `runs` at game over.)
+  const runsRef = useRef(0);
+  const runSummary = (s) => ({ time: Number(s.time.toFixed(1)), score: s.score, best: Number(s.best.toFixed(2)), members: s.members, floors: s.floors });
+  const inRun = (s) => s && s.mode === "play" && !s.over && s.time > 0;
+  useEffect(() => {
+    watchErrors();
+    trackVisit(isTouchOnly());
+    const leave = () => {
+      const s = engineRef.current?.stats();
+      if (inRun(s)) trackOnExit("run_abandon", { how: "close", ...runSummary(s) });
+    };
+    window.addEventListener("pagehide", leave);
+    return () => window.removeEventListener("pagehide", leave);
+  }, []);
+
   const startGame = useCallback(() => {
     music.rewind();
     engineRef.current?.start();
+    runsRef.current += 1;
+    track("run_start", { n: runsRef.current, how: "start" });
     push();
   }, [push]);
   const togglePause = useCallback(() => {
@@ -253,8 +275,12 @@ export default function Game() {
     push();
   }, [push]);
   const restart = useCallback(() => {
+    const s = engineRef.current?.stats();
+    if (inRun(s)) track("run_abandon", { how: "restart", ...runSummary(s) });
     music.rewind();
     engineRef.current?.restart();
+    runsRef.current += 1;
+    track("run_start", { n: runsRef.current, how: s?.over ? "retry" : "restart" });
     push();
   }, [push]);
 

@@ -30,6 +30,11 @@ function write(key, value) {
   }
 }
 
+// Whether this browser has been here before (it keeps its id from the first visit).
+const RETURNING = Boolean(read(PLAYER_KEY));
+// One page load: ties a visit to the runs played in it.
+const SESSION = crypto.randomUUID();
+
 // A random id per browser, so one player's runs can be told apart without any sign-in.
 function playerId() {
   let id = read(PLAYER_KEY);
@@ -66,7 +71,7 @@ export async function submitRun(s, timeline) {
     lava: Number(s.lava.toFixed(2)),
     cause: s.cause,
     timeline,
-    client: { viewport: [window.innerWidth, window.innerHeight], locale: navigator.language },
+    client: { viewport: [window.innerWidth, window.innerHeight], locale: navigator.language, session: SESSION },
   });
   if (error) console.warn("STAIRSTACK: run not saved", error.message);
   return !error;
@@ -110,4 +115,77 @@ export async function submitFeedback(kind, message, context) {
   if (!error) return "sent";
   console.warn("STAIRSTACK: report not saved", error.message);
   return /rate limit/.test(error.message) ? "limited" : "failed";
+}
+
+// ---------------------------------------------------------------- the funnel around the runs
+// (table `events`: visit · run_start · run_abandon · error)
+
+// Log one event. Fire and forget: the game never waits on it.
+export function track(kind, data = {}) {
+  if (!supabase) return;
+  supabase
+    .from("events")
+    .insert({ player_id: playerId(), session_id: SESSION, kind, data })
+    .then(({ error }) => {
+      if (error) console.warn("STAIRSTACK: event not saved", kind, error.message);
+    });
+}
+
+// The same, for the moment the tab is closing: a keepalive request outlives the page.
+export function trackOnExit(kind, data = {}) {
+  if (!supabase) return;
+  try {
+    fetch(`${URL}/rest/v1/events`, {
+      method: "POST",
+      keepalive: true,
+      headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ player_id: playerId(), session_id: SESSION, kind, data }),
+    }).catch(() => {});
+  } catch {
+    // nothing to do on the way out
+  }
+}
+
+// A page load: the device and screen it came on, its language, and where the link came from
+// (the referring site, or ?utm_source= on the shared link).
+export function trackVisit(touchOnly) {
+  let ref = "";
+  try {
+    ref = document.referrer ? new globalThis.URL(document.referrer).host : "";
+  } catch {
+    // an unreadable referrer is just no referrer
+  }
+  const utm = new URLSearchParams(location.search).get("utm_source") ?? "";
+  track("visit", {
+    touch: touchOnly,
+    returning: RETURNING,
+    viewport: [window.innerWidth, window.innerHeight],
+    dpr: window.devicePixelRatio,
+    lang: navigator.language,
+    ua: navigator.userAgent.slice(0, 200),
+    ref,
+    utm: utm.slice(0, 60),
+  });
+}
+
+// Errors: each distinct one once per page load, and no more than MAX_ERRORS of them.
+const MAX_ERRORS = 10;
+const reported = new Set();
+export function trackError(where, err) {
+  const message = String(err?.message ?? err ?? "unknown").slice(0, 300);
+  const key = `${where}|${message}`;
+  if (reported.has(key) || reported.size >= MAX_ERRORS) return;
+  reported.add(key);
+  track("error", {
+    where,
+    message,
+    stack: String(err?.stack ?? "").slice(0, 1200),
+    ua: navigator.userAgent.slice(0, 200),
+  });
+}
+
+// Catch what nothing else catches: uncaught errors and rejected promises anywhere on the page.
+export function watchErrors() {
+  window.addEventListener("error", (e) => trackError("window", e.error ?? e.message));
+  window.addEventListener("unhandledrejection", (e) => trackError("promise", e.reason));
 }
