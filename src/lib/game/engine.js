@@ -45,6 +45,8 @@ function createState() {
     blockedFace: null,
     blockedPulse: 0,
     dropped: 0, // members dropped this run — picks the next one from the drop order
+    manualDrops: 0,
+    autoDropHeld: false,
     floors: 0, // floor slabs stood on this run
     turns: 0, // face turns committed this run (refused ones don't count)
   };
@@ -119,8 +121,10 @@ export function createEngine(RAPIER, input) {
   }
 
   function drop() {
-    if (state.mode !== "play") return false;
-    return release(g);
+    if (state.mode !== "play" || state.paused) return false;
+    const released = release(g);
+    if (released) state.manualDrops += 1;
+    return released;
   }
 
   // Freeze the run where it stands: the world, the sinking member and the climber all hold
@@ -228,6 +232,7 @@ export function createEngine(RAPIER, input) {
       members: g.members.filter((m) => !m.floor).length,
       floors: state.floors,
       dropped: state.dropped,
+      manualDrops: state.manualDrops,
       turns: state.turns,
       yaw: g.preview.yaw,
       score: state.score,
@@ -299,6 +304,9 @@ export function createEngine(RAPIER, input) {
     // Hold the lava where it is (true) or let it go on rising (false); see advanceRun.
     holdLava(on) {
       state.lavaHeld = Boolean(on);
+    },
+    holdAutoDrop(on) {
+      state.autoDropHeld = Boolean(on);
     },
     placement: () => placement(g),
     viewFor: (faceId) => viewFor(g, faceId),

@@ -11,6 +11,7 @@ const OFF_IN_DEV = import.meta.env.DEV && import.meta.env.VITE_TELEMETRY_DEV !==
 const supabase = URL && KEY && !OFF_IN_DEV ? createClient(URL, KEY, { auth: { persistSession: false } }) : null;
 
 export const telemetryEnabled = Boolean(supabase);
+const REQUEST_TIMEOUT_MS = 10000;
 
 const PLAYER_KEY = "stairstack.player";
 
@@ -72,7 +73,7 @@ export async function submitRun(s, timeline) {
     cause: s.cause,
     timeline,
     client: { viewport: [window.innerWidth, window.innerHeight], locale: navigator.language, session: SESSION },
-  });
+  }).abortSignal(AbortSignal.timeout(REQUEST_TIMEOUT_MS));
   if (error) console.warn("STAIRSTACK: run not saved", error.message);
   return !error;
 }
@@ -89,11 +90,11 @@ export async function fetchLeaderboard(limit = 10) {
   if (!supabase) return { top: [], me: null };
   const tag = await playerTag();
   const [top, mine] = await Promise.all([
-    supabase.from("leaderboard").select("tag, name, score, runs, rank").limit(limit),
-    supabase.from("player_bests").select("tag, name, score, runs, rank").eq("tag", tag).maybeSingle(),
+    supabase.from("leaderboard").select("tag, name, score, runs, rank").limit(limit).abortSignal(AbortSignal.timeout(REQUEST_TIMEOUT_MS)),
+    supabase.from("player_bests").select("tag, name, score, runs, rank").eq("tag", tag).maybeSingle().abortSignal(AbortSignal.timeout(REQUEST_TIMEOUT_MS)),
   ]);
   if (top.error) console.warn("STAIRSTACK: leaderboard unavailable", top.error.message);
-  return { top: top.data ?? [], me: mine.data ?? null };
+  return { top: top.data ?? [], me: mine.data ?? null, failed: Boolean(top.error || mine.error) };
 }
 
 // Send a bug report or an idea. `context` is a snapshot of the run it was written in. Resolves to

@@ -72,6 +72,42 @@ describe("engine", () => {
     expect(engine.stats().members).toBe(5);
   });
 
+  it("only counts player drops as manual, and resets them on restart", () => {
+    engine.start();
+    run(5);
+    expect(engine.stats().dropped).toBeGreaterThan(0);
+    expect(engine.stats().manualDrops).toBe(0);
+    expect(engine.drop()).toBe(true);
+    expect(engine.stats().manualDrops).toBe(1);
+    engine.restart();
+    expect(engine.stats().manualDrops).toBe(0);
+  });
+
+  it("holds the tutorial block until a click, then permits automatic drops again", () => {
+    engine.start();
+    engine.holdLava(true);
+    engine.holdAutoDrop(true);
+    const y = engine.placement().y;
+    run(8);
+    expect(engine.stats().dropped).toBe(0);
+    expect(engine.placement().y).toBe(y);
+    expect(engine.drop()).toBe(true);
+    expect(engine.stats().manualDrops).toBe(1);
+    engine.holdAutoDrop(false);
+    run(5);
+    expect(engine.stats().dropped).toBeGreaterThan(1);
+    expect(engine.stats().manualDrops).toBe(1);
+  });
+
+  it("rejects a drop while paused without changing the run", () => {
+    engine.start();
+    engine.togglePause();
+    const before = engine.stats();
+    expect(engine.drop()).toBe(false);
+    run(1);
+    expect(engine.stats()).toEqual(before);
+  });
+
   it("snaps the member in play to the grid, square, and inside the plate", () => {
     engine.start(); // the first member is a slab, 2.5 × 1.5 — five cells by three
     engine.preview.x = 1.13;

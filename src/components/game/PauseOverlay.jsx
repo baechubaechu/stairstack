@@ -1,10 +1,7 @@
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import ControlsGuide from "@/components/game/ControlsGuide";
 import { LANGS, useLang } from "@/lib/i18n";
-
-// How long the restart button waits for its second click before it backs off again.
-const CONFIRM_MS = 3000;
+import useRestartConfirmation from "./useRestartConfirmation";
 
 // The pause menu, over a run held still by Esc or the Pause button: carry on, start over, set the
 // music, or look up the controls again. Esc (or Resume) closes it and the run picks up exactly
@@ -12,12 +9,7 @@ const CONFIRM_MS = 3000;
 export default function PauseOverlay({ onResume, onRestart, volume, onVolume, muted, onToggleMute, onReport, onGuide }) {
   const { lang, t, setLang } = useLang();
   // A restart throws the run away, so it takes a second click to be sure.
-  const [confirming, setConfirming] = useState(false);
-  useEffect(() => {
-    if (!confirming) return undefined;
-    const id = setTimeout(() => setConfirming(false), CONFIRM_MS);
-    return () => clearTimeout(id);
-  }, [confirming]);
+  const { confirming, requestRestart } = useRestartConfirmation(onRestart);
 
   const pct = Math.round(volume * 100);
 
@@ -41,14 +33,7 @@ export default function PauseOverlay({ onResume, onRestart, volume, onVolume, mu
               variant="outline"
               data-testid="btn-pause-restart"
               className={confirming ? "border-rose-300 text-rose-600 hover:text-rose-700" : ""}
-              onClick={() => {
-                if (!confirming) {
-                  setConfirming(true);
-                  return;
-                }
-                setConfirming(false);
-                onRestart();
-              }}
+              onClick={requestRestart}
             >
               {confirming ? t("pause.confirm") : t("pause.restart")}
             </Button>

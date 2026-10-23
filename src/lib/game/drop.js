@@ -60,6 +60,7 @@ function clearOf(g, type, x, y, z, yaw) {
 // taking AUTO_FALL_SECONDS from where it was released down to whatever it lands on — and less
 // time the further the run has gone, so the drop presses harder as the lava closes in.
 export function descend(g, dt) {
+  if (g.state.autoDropHeld) return;
   const a = g.state.active;
   if (!a) return;
   const p = placement(g);

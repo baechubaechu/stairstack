@@ -103,7 +103,7 @@ function Stat({ label, value }) {
 // The game over, as a news broadcast. First the breaking-news screen — the anchor, the drone's
 // photo of the scene, a headline — then the reporter on site going through the result, line by
 // line, with the score, the leaderboard and the way back in. Clicking moves it along.
-export default function NewsOverlay({ stats, death, photo, board, best, onRetry, onReport }) {
+export default function NewsOverlay({ stats, death, photo, board, saveStatus, best, onRetry, onReport }) {
   const { t } = useLang();
   const [stage, setStage] = useState("flash");
   const [shown, setShown] = useState(1);
@@ -213,6 +213,8 @@ export default function NewsOverlay({ stats, death, photo, board, best, onRetry,
                     <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-white/60">{t("over.board")}</p>
                     {board === null ? (
                       <p className="py-1 font-mono text-[11px] text-white/60">{t("over.loading")}</p>
+                    ) : board.failed ? (
+                      <p role="status" className="py-1 text-[11px] text-amber-200">{t("over.boardFailed")}</p>
                     ) : board.top.length === 0 ? (
                       <p className="py-1 font-mono text-[11px] text-white/60">{t("over.empty")}</p>
                     ) : (
@@ -234,6 +236,9 @@ export default function NewsOverlay({ stats, death, photo, board, best, onRetry,
                     )}
                   </div>
                 ) : null}
+                <p data-testid="run-save-status" role="status" className={`text-[12px] ${saveStatus === "failed" ? "text-amber-200" : "text-white/80"}`}>
+                  {t(`over.${saveStatus}`)}
+                </p>
                 <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                   <Button className="flex-1 bg-[#c2740a] text-white hover:bg-[#a8650a]" data-testid="btn-gameover-retry" onClick={onRetry}>
                     {t("news.retry")}

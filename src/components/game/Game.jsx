@@ -21,7 +21,7 @@ import { useGuide } from "@/components/game/guide";
 import { FACES, LAVA_START, SPAWN } from "@/lib/game/constants";
 import * as music from "@/lib/game/music";
 import { getLang, t, useLang } from "@/lib/i18n";
-import { fetchLeaderboard, submitRun, track, trackError, trackOnExit, trackVisit, watchErrors } from "@/lib/telemetry";
+import { fetchLeaderboard, submitRun, telemetryEnabled, track, trackError, trackOnExit, trackVisit, watchErrors } from "@/lib/telemetry";
 
 const TIMELINE_EVERY = 5; // seconds between run-log samples
 // The game-over beat before the news (ms): when the drone's photo is taken, and when the news comes
@@ -205,14 +205,22 @@ export default function Game() {
       inputRef.current.left = false;
       inputRef.current.right = false;
       inputRef.current.jump = false;
+      const eng = engineRef.current;
+      if (eng?.mode === "play" && !eng.stats().paused) {
+        eng.togglePause();
+        push();
+      }
     };
+    const visibility = () => { if (document.hidden) blur(); };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("blur", blur);
+    document.addEventListener("visibilitychange", visibility);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       window.removeEventListener("blur", blur);
+      document.removeEventListener("visibilitychange", visibility);
     };
   }, [push]);
 
@@ -230,6 +238,8 @@ export default function Game() {
   // Run log: height / lava sampled every few seconds while the run is live, sent once at game over.
   const timelineRef = useRef([]);
   const [board, setBoard] = useState(null);
+  const [saveStatus, setSaveStatus] = useState("offline");
+  const resultVersion = useRef(0);
   useEffect(() => {
     if (stats.mode !== "play") return;
     const t = Math.floor(stats.time / TIMELINE_EVERY) * TIMELINE_EVERY;
@@ -238,12 +248,30 @@ export default function Game() {
     else if (!last || last.t < t) timelineRef.current.push({ t, h: Number(stats.best.toFixed(2)), lava: Number(stats.lava.toFixed(2)) });
   }, [stats.mode, stats.time, stats.best, stats.lava]);
   useEffect(() => {
-    if (!stats.over) return;
+    if (!stats.over) return undefined;
+    const version = ++resultVersion.current;
+    let cancelled = false;
+    const current = () => !cancelled && version === resultVersion.current;
     setBoard(null);
+    setSaveStatus(telemetryEnabled ? "saving" : "offline");
     const s = engineRef.current?.stats() ?? stats;
-    submitRun(s, timelineRef.current)
-      .then(() => fetchLeaderboard())
-      .then(setBoard);
+    (async () => {
+      try {
+        const saved = await submitRun(s, timelineRef.current);
+        if (!current()) return;
+        setSaveStatus(!telemetryEnabled ? "offline" : saved ? "saved" : "failed");
+      } catch {
+        if (!current()) return;
+        setSaveStatus("failed");
+      }
+      try {
+        const next = await fetchLeaderboard();
+        if (current()) setBoard(next);
+      } catch {
+        if (current()) setBoard({ top: [], me: null, failed: true });
+      }
+    })();
+    return () => { cancelled = true; };
     // one submission per game over; `stats` changes every tick but `over` only flips once
   }, [stats.over]);
 
@@ -342,25 +370,30 @@ export default function Game() {
   }, []);
 
   const startGame = useCallback(() => {
+    resultVersion.current += 1;
     music.rewind();
     engineRef.current?.start();
+    guide.onRunStart();
     runsRef.current += 1;
     track("run_start", { n: runsRef.current, how: "start" });
     push();
-  }, [push]);
+  }, [push, guide.onRunStart]);
   const togglePause = useCallback(() => {
     engineRef.current?.togglePause();
     push();
   }, [push]);
   const restart = useCallback(() => {
+    resultVersion.current += 1;
     const s = engineRef.current?.stats();
     if (inRun(s)) track("run_abandon", { how: "restart", ...runSummary(s) });
     music.rewind();
     engineRef.current?.restart();
+    guide.onRunStart();
+    timelineRef.current = [];
     runsRef.current += 1;
     track("run_start", { n: runsRef.current, how: s?.over ? "retry" : "restart" });
     push();
-  }, [push]);
+  }, [push, guide.onRunStart]);
 
   return (
     <FrameContext.Provider value={subscribeFrame}>
@@ -436,6 +469,7 @@ export default function Game() {
             death={engineRef.current?.death}
             photo={news.photo}
             board={board}
+            saveStatus={saveStatus}
             best={news.best}
             onRetry={restart}
             onReport={openReport}

@@ -1,4 +1,5 @@
 import { useLang } from "@/lib/i18n";
+import useRestartConfirmation from "./useRestartConfirmation";
 
 const BADGE = {
   menu: { label: "badge.menu", tone: "bg-black/10 text-[#3f4a54]" },
@@ -25,6 +26,7 @@ function Switch({ children, ...props }) {
 export default function CabRoof({ stats, engineState, onTogglePause, onRestart, muted, onToggleMute, onReport }) {
   const { lang, t, setLang } = useLang();
   const ready = engineState === "ready";
+  const { confirming, requestRestart } = useRestartConfirmation(onRestart, stats.mode === "play");
   const badge = (stats.over && BADGE.over) || (stats.paused && BADGE.paused) || BADGE[stats.mode] || BADGE.menu;
   return (
     <header className="flex shrink-0 items-center justify-between gap-3 px-4 py-2">
@@ -46,8 +48,8 @@ export default function CabRoof({ stats, engineState, onTogglePause, onRestart, 
         <Switch data-testid="btn-mute" onClick={onToggleMute}>
           {muted ? t("bar.musicOff") : t("bar.musicOn")}
         </Switch>
-        <Switch data-testid="btn-restart" disabled={!ready} onClick={onRestart}>
-          {t("bar.restart")}
+        <Switch data-testid="btn-restart" disabled={!ready} onClick={requestRestart}>
+          {confirming ? t("pause.confirm") : t("bar.restart")}
         </Switch>
         <Switch data-testid="btn-report" onClick={onReport}>
           {t("bar.report")}
