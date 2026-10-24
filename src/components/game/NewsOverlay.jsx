@@ -3,9 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useLang } from "@/lib/i18n";
 import { telemetryEnabled } from "@/lib/telemetry";
 
-// How long the breaking-news screen holds before the reporter takes over, and how often the
-// reporter's next line comes up (ms).
-const FLASH_MS = 1500;
+// How often the reporter's next line comes up (ms).
 const LINE_MS = 1500;
 // A run this short gets the "everyone starts like that" sign-off (seconds).
 const SHORT_RUN = 30;
@@ -13,28 +11,6 @@ const SHORT_RUN = 30;
 const HEADLINES = { lava: 4, head: 3 };
 const TICKERS = 7;
 const pick = (n) => 1 + Math.floor(Math.random() * n);
-
-// The anchor at the news desk, drawn in the game's plain figure style.
-function Anchor() {
-  return (
-    <svg viewBox="0 0 120 120" className="h-full w-full" aria-hidden="true">
-      <rect x="0" y="0" width="120" height="120" fill="#16324f" />
-      <circle cx="96" cy="24" r="30" fill="#1f4468" />
-      {/* body and suit */}
-      <path d="M30 120 Q32 78 60 74 Q88 78 90 120 Z" fill="#2e3843" />
-      <path d="M54 76 L60 96 L66 76 Z" fill="#f4f1ec" />
-      <path d="M58 80 L60 98 L62 80 Z" fill="#c03a4c" />
-      {/* head */}
-      <circle cx="60" cy="54" r="15" fill="#f1c9a5" />
-      <path d="M45 52 Q46 36 60 36 Q75 36 75 50 Q68 44 58 46 Q50 47 45 52 Z" fill="#2b2420" />
-      {/* desk */}
-      <rect x="10" y="98" width="100" height="22" fill="#c2740a" />
-      <text x="60" y="113" textAnchor="middle" fontSize="10" fontWeight="700" fill="#ffffff" fontFamily="monospace">
-        STS
-      </text>
-    </svg>
-  );
-}
 
 // The reporter on site: hard hat, hi-vis vest, microphone.
 function Reporter() {
@@ -100,12 +76,10 @@ function Stat({ label, value }) {
   );
 }
 
-// The game over, as a news broadcast. First the breaking-news screen — the anchor, the drone's
-// photo of the scene, a headline — then the reporter on site going through the result, line by
-// line, with the score, the leaderboard and the way back in. Clicking moves it along.
+// The game over goes straight to the field reporter, with the headline, results and retry
+// button visible immediately. Clicking reveals the rest of the report.
 export default function NewsOverlay({ stats, death, photo, board, saveStatus, best, onRetry, onReport }) {
   const { t } = useLang();
-  const [stage, setStage] = useState("flash");
   const [shown, setShown] = useState(1);
 
   const cause = stats.cause === "lava" ? "lava" : "head";
@@ -125,20 +99,14 @@ export default function NewsOverlay({ stats, death, photo, board, saveStatus, be
   const lines = useMemo(() => reportLines(t, stats, death, rank, best), [t, stats, death, rank, best]);
 
   useEffect(() => {
-    if (stage !== "flash") return undefined;
-    const id = setTimeout(() => setStage("report"), FLASH_MS);
-    return () => clearTimeout(id);
-  }, [stage]);
-  useEffect(() => {
-    if (stage !== "report" || shown >= lines.length) return undefined;
+    if (shown >= lines.length) return undefined;
     const id = setTimeout(() => setShown((n) => n + 1), LINE_MS);
     return () => clearTimeout(id);
-  }, [stage, shown, lines.length]);
+  }, [shown, lines.length]);
 
-  // a click moves the broadcast along: off the headline, then through the reporter's lines
+  // A click reveals all remaining lines.
   const advance = () => {
-    if (stage === "flash") setStage("report");
-    else if (shown < lines.length) setShown(lines.length);
+    if (shown < lines.length) setShown(lines.length);
   };
 
   return (
@@ -159,30 +127,15 @@ export default function NewsOverlay({ stats, death, photo, board, saveStatus, be
           </span>
         </div>
 
-        {stage === "flash" ? (
-          <div data-testid="news-flash">
-            <div className="grid aspect-[16/8] grid-cols-[2fr_3fr] gap-3 p-4">
-              <div className="overflow-hidden rounded-md">
-                <Anchor />
-              </div>
-              <div className="relative overflow-hidden rounded-md border-2 border-white/80 bg-black">
-                {photo ? <img src={photo} alt="" className="h-full w-full object-cover" /> : null}
-                <span className="absolute left-2 top-2 rounded bg-black/60 px-2 py-0.5 font-mono text-[10px] text-white">
-                  {t("news.photo")}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-stretch">
-              <span className="flex items-center bg-[#c03a4c] px-4 font-display text-[18px] font-bold text-white">
-                {t("news.breaking")}
-              </span>
-              <p data-testid="news-headline" className="flex-1 bg-white px-4 py-3 font-display text-[19px] font-bold leading-snug text-[#0b1420]">
-                {headline}
-              </p>
-            </div>
-            <p className="bg-[#0f2236] px-4 py-1 font-mono text-[10px] text-white/70">{t("news.anchor")}</p>
-          </div>
-        ) : (
+        <div className="flex items-stretch">
+          <span className="flex shrink-0 items-center bg-[#c03a4c] px-4 font-display text-[18px] font-bold text-white">
+            {t("news.breaking")}
+          </span>
+          <p data-testid="news-headline" className="min-w-0 flex-1 bg-white px-4 py-3 font-display text-[19px] font-bold leading-snug text-[#0b1420]">
+            {headline}
+          </p>
+        </div>
+
           <div data-testid="news-report" className="relative">
             {photo ? <img src={photo} alt="" className="absolute inset-0 h-full w-full object-cover opacity-30 blur-[2px]" /> : null}
             <div className="relative grid grid-cols-[180px_1fr] gap-4 p-4 md:grid-cols-[220px_1fr]">
@@ -250,10 +203,9 @@ export default function NewsOverlay({ stats, death, photo, board, saveStatus, be
               </div>
             </div>
           </div>
-        )}
 
         <Ticker t={t} />
-        {stage === "flash" || shown < lines.length ? (
+        {shown < lines.length ? (
           <p className="bg-[#0b1420] pb-1.5 text-center font-mono text-[9px] text-white/40">{t("news.next")}</p>
         ) : null}
       </div>
