@@ -450,7 +450,7 @@ export default function Game() {
         </main>
 
         <CabConsole stats={stats} />
-        <Talk engineRef={engineRef} mode={stats.mode} over={stats.over} />
+        <Talk engineRef={engineRef} mode={stats.mode} over={stats.over} quiet={guide.target != null} />
   
         {stats.mode === "menu" ? <StartOverlay engineState={engineState} onStart={startGame} onComic={() => setComic(true)} /> : null}
         {comic && stats.mode === "menu" && !touchGate ? <ComicIntro onDone={closeComic} /> : null}

@@ -1,8 +1,8 @@
 import { useSpeech } from "@/components/game/speech";
 import { useLang } from "@/lib/i18n";
 
-// The foreman's radio, as a subtitle along the bottom of the plan — the player is the one up in
-// the crane, so their side of the conversation runs under their own view.
+// The crane operator's radio, as a subtitle along the bottom of the plan — the player is the one
+// up in the cab, so their side of the conversation runs under their own view.
 export default function BossSubtitle() {
   const { t } = useLang();
   const line = useSpeech("boss");

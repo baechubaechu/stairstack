@@ -1,5 +1,5 @@
 // Who is saying what, right now. Two voices: the worker on site (a speech bubble over their head in
-// the drone view) and the foreman — the player, up in the crane — whose radio replies run as a
+// the drone view) and the crane operator — the player, up in the cab — whose radio replies run as a
 // subtitle along the bottom of the plan. Render-side only; the engine never hears any of it.
 import { useSyncExternalStore } from "react";
 

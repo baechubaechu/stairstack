@@ -124,7 +124,7 @@ function Art({ box, children }) {
   );
 }
 
-// ① Dusk. The tower is going up, the worker stretches on the top slab, the mountain sleeps.
+// ① Dusk. The tower is going up, the worker stretches on the first floor, the mountain sleeps.
 function PanelCalm() {
   return (
     <Art box="0 0 360 100">
@@ -149,7 +149,7 @@ function PanelCalm() {
       </g>
       <rect x="98" y="12" width="12" height="6" fill={INK} />
       <rect x="192" y="40" width="16" height="3" fill={ACCENT} />
-      <Worker x={91} y={25} s={0.85} pose="stretch" />
+      <Worker x={91} y={70} s={0.85} pose="stretch" />
       <rect y="88" width="360" height="12" fill={GROUND} />
       <line x1="0" y1="88" x2="360" y2="88" stroke={INK} strokeWidth="1" />
     </Art>
@@ -215,7 +215,7 @@ function PanelLift() {
 }
 
 // ④ The eruption — the biggest panel. Fire and ash, the ground drowned in lava, the worker
-// stranded on the top slab while the whole frame shakes.
+// stranded on the first floor, storeys of bare frame above them, while the whole frame shakes.
 function PanelEruption() {
   return (
     <Art box="0 0 265 100">
@@ -253,15 +253,15 @@ function PanelEruption() {
       <path d="M157 20 l16 8 M174 45 l12 3" stroke="#ffcf7a" strokeWidth="1" strokeLinecap="round" opacity="0.8" />
       <g className="comic-shake">
         <Tower x={26} w={54} ground={100} floors={5} gap={13.5} />
-        <Worker x={53} y={29.5} s={0.95} pose="alarm" />
-        <path d="M40 12 l-4 -3 M66 12 l4 -3 M37 20 l-5 0 M69 20 l5 0" stroke="#ffe0b0" strokeWidth="1.2" strokeLinecap="round" />
+        <Worker x={53} y={83.5} s={0.95} pose="alarm" />
+        <path d="M40 66 l-4 -3 M66 66 l4 -3 M37 74 l-5 0 M69 74 l5 0" stroke="#ffe0b0" strokeWidth="1.2" strokeLinecap="round" />
       </g>
-      <rect y="80" width="265" height="20" fill={LAVA_DEEP} />
-      <path d="M0 81 Q20 77 40 81 T80 81 T120 81 T160 81 T200 81 T240 81 T280 81" stroke={LAVA} strokeWidth="2.4" fill="none" />
+      <rect y="90" width="265" height="10" fill={LAVA_DEEP} />
+      <path d="M0 91 Q20 87 40 91 T80 91 T120 91 T160 91 T200 91 T240 91 T280 91" stroke={LAVA} strokeWidth="2.4" fill="none" />
       <g fill="#ffb347">
-        <circle cx="96" cy="88" r="1.6" />
-        <circle cx="150" cy="92" r="1.3" />
-        <circle cx="12" cy="90" r="1.4" />
+        <circle cx="96" cy="95" r="1.6" />
+        <circle cx="150" cy="97" r="1.3" />
+        <circle cx="12" cy="96" r="1.4" />
       </g>
     </Art>
   );
