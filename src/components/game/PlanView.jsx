@@ -1,13 +1,14 @@
 import { useEffect, useRef } from "react";
 import { useFrame } from "@/components/game/frame";
 import { paintMember } from "@/components/game/art/materials";
+import { drawFoundation, drawSiteGround, drawSiteObjects } from "@/components/game/art/site";
 import { createCamera, easeYaw, yawFor } from "@/components/game/perspective";
 import useCanvasSize from "@/components/game/useCanvasSize";
 import { MONO } from "@/lib/game/canvas";
 import { AIM_LIMIT, CELL, CHARACTER, FACES, GROUND_HALF, ROTATE_STEP_DEG, VIEW_FOLLOW } from "@/lib/game/constants";
 import { boxVertices, memberVertices } from "@/lib/game/elevation";
 import { quatFromEuler } from "@/lib/game/world";
-import { ACCENT, ACCENT_TINT, CLIMBER_GUIDE, FIGURE, GRID, INK_FAINT, PAPER, PLATE, SHADOW, edgeOf, scaleHex } from "@/lib/game/palette";
+import { ACCENT, ACCENT_TINT, CLIMBER_GUIDE, FIGURE, GRID, INK_FAINT, PAPER, SHADOW, edgeOf, scaleHex } from "@/lib/game/palette";
 
 const ROTATE_STEP = (ROTATE_STEP_DEG * Math.PI) / 180;
 const clampAim = (v) => Math.max(-AIM_LIMIT, Math.min(AIM_LIMIT, v));
@@ -19,6 +20,8 @@ const SLAB_FILL = 0.6;
 // How fast the camera turns with the elevation and rises with the climber (per second).
 const TURN_RATE = 7;
 const RISE_RATE = 4;
+// How much of the window the foundation fills; the rest shows the site round it.
+const SITE_FILL = 0.8;
 
 // A box's six faces as corner indices into boxVertices() (index = 4·sx + 2·sy + sz, 0 for −, 1
 // for +), each with the local axis it faces along.
@@ -177,6 +180,39 @@ function drawWorkPlane(ctx, cam, rise, H, face) {
 
 }
 
+// The placing grid again, at the height the member in play will land at, round its footprint.
+// The work plane's grid lies at the camera's height; seen in perspective, a footprint landing
+// higher or lower than that plane would seem to sit between its lines. Redrawn at the landing
+// height, the cells line up with the footprint exactly and show which ones it will fill.
+function drawCellPatch(ctx, cam, land, y, H) {
+  const xs = land.map((p) => p[0]);
+  const zs = land.map((p) => p[2]);
+  const x0 = Math.max(-H, Math.min(...xs) - CELL);
+  const x1 = Math.min(H, Math.max(...xs) + CELL);
+  const z0 = Math.max(-H, Math.min(...zs) - CELL);
+  const z1 = Math.min(H, Math.max(...zs) + CELL);
+  const at = (v) => Math.round(v / CELL) * CELL;
+  ctx.save();
+  ctx.strokeStyle = ACCENT;
+  ctx.globalAlpha = 0.35;
+  ctx.lineWidth = 0.75;
+  ctx.beginPath();
+  for (let gx = at(x0); gx <= x1 + 1e-6; gx += CELL) {
+    const a = cam.project(gx, y, z0);
+    const b = cam.project(gx, y, z1);
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+  }
+  for (let gz = at(z0); gz <= z1 + 1e-6; gz += CELL) {
+    const a = cam.project(x0, y, gz);
+    const b = cam.project(x1, y, gz);
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
 // TOP VIEW — the same rigid bodies seen in perspective from above, from the side the elevation
 // is read from: the plan's near edge is the elevation's plane and its left-right is the
 // elevation's, and the camera turns with the elevation and rises with the climber. The mouse
@@ -258,18 +294,17 @@ export default function PlanView({ engineRef, onDrop }) {
     const goalRise = Math.max(0, feet - VIEW_FOLLOW, floorTop ?? 0);
     riseRef.current += (goalRise - riseRef.current) * Math.min(1, dt * RISE_RATE);
     const rise = riseRef.current;
-    // the site is framed inside the window, clear of its leaning pillars
-    const cam = createCamera(yawRef.current, rise, w, h, GROUND_HALF, 0.88, { x: w * 0.035, bottom: 0 });
+    // the site is framed inside the window, clear of its leaning pillars, with a margin of the
+    // site round the foundation
+    const cam = createCamera(yawRef.current, rise, w, h, GROUND_HALF, SITE_FILL, { x: w * 0.035, bottom: 0 });
     camRef.current = cam;
     const H = GROUND_HALF;
 
-    // the ground plate, and the work plane at the camera's height with the placing grid on it
-    ctx.fillStyle = PLATE;
-    tracePts(ctx, flatRect(cam, -H, -H, H, H, 0));
-    ctx.fill();
-    ctx.strokeStyle = INK_FAINT;
-    ctx.lineWidth = 1.2;
-    ctx.stroke();
+    // the site round the plate and what stands beyond it, then the foundation (the plate), and
+    // the work plane at the camera's height with the placing grid on it
+    drawSiteGround(ctx, cam);
+    drawSiteObjects(ctx, cam, false);
+    drawFoundation(ctx, cam, H);
     if (rise > 0.05) {
       ctx.fillStyle = "rgba(255,255,255,0.55)";
       tracePts(ctx, flatRect(cam, -H, -H, H, H, rise));
@@ -376,6 +411,8 @@ export default function PlanView({ engineRef, onDrop }) {
     for (const b of boxes) if (!under(b) && b !== deck && b.top <= lava) drawOne(b);
     if (!lavaUnder) drawLava();
     for (const b of boxes) if (!under(b) && b !== deck && b.top > lava) drawOne(b);
+    // what stands on the site on the camera's side of the plate, in front of the tower
+    drawSiteObjects(ctx, cam, true);
 
     // the climber, on the near face: a dashed line across the plate where their column is, and
     // their figure standing at its near end
@@ -411,6 +448,7 @@ export default function PlanView({ engineRef, onDrop }) {
       const bottom = pl.landing - hy;
       const land = boxVertices(hx, 0, hz, { x: pl.x, y: bottom, z: pl.z }, q);
       const foot = [0, 1, 5, 4].map((i) => cam.project(land[i][0], land[i][1], land[i][2]));
+      drawCellPatch(ctx, cam, land, bottom, H);
       ctx.save();
       tracePts(ctx, foot);
       ctx.fillStyle = ACCENT_TINT;

@@ -15,12 +15,12 @@ import { t } from "@/lib/i18n";
 // as a head bump is caught.
 
 // Each kind: how urgent it is (1 chatter, 2 news, 3 danger), how many wordings it has, and the
-// operator's reply, if any.
+// operator's reply, if any — to every wording (`boss`), or only to some (`replies`, by wording).
 const KINDS = {
   start: { prio: 2, n: 2, boss: "talk.start.boss" },
   landed: { prio: 1, n: 3 },
   overhead: { prio: 3, n: 2 },
-  lavaNear: { prio: 2, n: 2 },
+  lavaNear: { prio: 2, n: 3, replies: { 3: "talk.lavaNear.3.boss" } },
   lavaClose: { prio: 3, n: 2, boss: "talk.lavaClose.boss" },
   floor: { prio: 2, n: 2 },
   idle: { prio: 1, n: 2 },
@@ -122,7 +122,8 @@ export default function Talk({ engineRef, mode, over, quiet }) {
     if (k.n > 1 && i === last.current.pick[kind]) i = (i % k.n) + 1;
     last.current = { at: now, pick: { ...last.current.pick, [kind]: i } };
     const lines = [{ who: "worker", text: t(`talk.${kind}.${i}`, vars), ms: LINE_MS }];
-    if (k.boss) lines.push({ who: "boss", text: t(k.boss), ms: REPLY_MS, after: REPLY_AFTER });
+    const reply = k.replies?.[i] ?? k.boss;
+    if (reply) lines.push({ who: "boss", text: t(reply), ms: REPLY_MS, after: REPLY_AFTER });
     dialogue(lines);
     return true;
   };
