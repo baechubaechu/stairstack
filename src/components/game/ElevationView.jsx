@@ -433,7 +433,7 @@ export default function ElevationView({ engineRef, snapRef }) {
 
       // whatever the worker is saying, over their head
       const said = !sinking && speaking("worker");
-      if (said) drawSpeechBubble(ctx, X(c.x), Y(c.y + c.hh + 0.15), said, w);
+      if (said) drawSpeechBubble(ctx, X(c.x), Y(c.y + c.hh + 0.15), said, X(view.xMin), X(view.xMax));
     }
 
     // the place the climber would have stepped onto on the face that turned them around —

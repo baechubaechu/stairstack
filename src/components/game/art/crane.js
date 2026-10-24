@@ -242,16 +242,17 @@ function wrap(ctx, text, max) {
 }
 
 // The worker's speech bubble, its tail pointing down at the head at screen (x, y). Kept inside
-// the canvas `w` wide.
-export function drawSpeechBubble(ctx, x, y, text, w) {
+// the drone's picture, `left` to `right` across (the canvas is wider than the picture, and
+// what falls outside the picture is cut off), however near its edge the worker stands.
+export function drawSpeechBubble(ctx, x, y, text, left, right) {
   ctx.save();
   ctx.font = `bold 12px ${MONO}`;
-  const lines = wrap(ctx, text, 220);
+  const lines = wrap(ctx, text, Math.min(220, right - left - 34));
   const lh = 16;
   const tw = Math.max(...lines.map((l) => ctx.measureText(l).width));
   const bw = tw + 22;
   const bh = lines.length * lh + 14;
-  const bx = Math.max(6, Math.min(w - bw - 6, x - bw / 2));
+  const bx = Math.max(left + 6, Math.min(right - bw - 6, x - bw / 2));
   const by = y - bh - 16;
   ctx.fillStyle = "#ffffff";
   ctx.strokeStyle = "#2e3843";
