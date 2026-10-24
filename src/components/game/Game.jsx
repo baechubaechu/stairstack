@@ -5,6 +5,7 @@ import FaceIndicator from "@/components/game/FaceIndicator";
 import { FrameContext } from "@/components/game/frame";
 import NewsOverlay from "@/components/game/NewsOverlay";
 import StartOverlay from "@/components/game/StartOverlay";
+import ComicIntro, { comicSeen, markComicSeen } from "@/components/game/ComicIntro";
 import PauseOverlay from "@/components/game/PauseOverlay";
 import ReportDialog from "@/components/game/ReportDialog";
 import MobileGate, { isTouchOnly } from "@/components/game/MobileGate";
@@ -327,6 +328,12 @@ export default function Game() {
   }, [stats.over]);
 
   const guide = useGuide(engineRef, stats);
+  // The opening comic plays by itself on a first visit; the start screen can play it again.
+  const [comic, setComic] = useState(() => !comicSeen());
+  const closeComic = useCallback(() => {
+    markComicSeen();
+    setComic(false);
+  }, []);
 
   const toggleMute = useCallback(() => {
     music.setMuted(!muted);
@@ -445,7 +452,8 @@ export default function Game() {
         <CabConsole stats={stats} />
         <Talk engineRef={engineRef} mode={stats.mode} over={stats.over} />
   
-        {stats.mode === "menu" ? <StartOverlay engineState={engineState} onStart={startGame} /> : null}
+        {stats.mode === "menu" ? <StartOverlay engineState={engineState} onStart={startGame} onComic={() => setComic(true)} /> : null}
+        {comic && stats.mode === "menu" && !touchGate ? <ComicIntro onDone={closeComic} /> : null}
         {stats.mode === "play" && stats.paused && !stats.over ? (
           <PauseOverlay
             onResume={togglePause}

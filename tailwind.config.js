@@ -1,4 +1,4 @@
-import { ACCENT } from "./src/lib/game/palette.js";
+import { ACCENT, LAVA } from "./src/lib/game/palette.js";
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -44,12 +44,21 @@ export default {
         paper: "hsl(var(--paper))",
         // The canvases' ochre accent, so HTML labels match the drawings exactly.
         // (`accent` above is shadcn's near-white hover tint, not this.)
-        ochre: ACCENT,
+        ochre: { DEFAULT: ACCENT, hi: "#e39a2c" },
+        // The crane cab (docs/ui-moodboard.html). Each colour has one job: the cab's dark interior
+        // and its painted steel behind everything, ochre only on what the hand works, LCD green
+        // only on numbers, danger red only for lava and alarms.
+        cab: { DEFAULT: "#1d2328", steel: "#2c343b", edge: "#414b54", text: "#dfe3e6", dim: "#8f9aa3" },
+        lcd: { DEFAULT: "#9fe08a", glass: "#0f1a12" },
+        danger: LAVA,
       },
       fontFamily: {
         body: ["var(--font-body)"],
         display: ["var(--font-display)"],
         mono: ["var(--font-mono)"],
+        stencil: ["var(--font-stencil)"],
+        sign: ["var(--font-sign)"],
+        lcd: ["var(--font-lcd)"],
       },
     },
   },
