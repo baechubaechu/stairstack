@@ -77,12 +77,15 @@ randomness (embers, dust) is fine there; the engine itself must stay determinist
 
 ## Supabase (run logs + leaderboard)
 `src/lib/telemetry.js` sends one `runs` row at game over and reads the `leaderboard` / `player_bests` views (one row per anonymous player, keyed by a SHA-256 tag of the browser's random id); schema and RLS in
-`supabase/migrations/` (applied to production by the Supabase GitHub integration on merge to main; or paste into the SQL Editor). Keys come from `.env.local`
+`supabase/migrations/` (applied to production by the Supabase GitHub integration on push to main — don't also
+apply them by hand: the integration runs `db push`, which stops on any remote migration version missing from this
+folder, so a file's timestamp must match the version recorded in production; its result shows as the "Supabase
+Preview" check on the commit). Keys come from `.env.local`
 (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, see `.env.example`); with no keys it silently does nothing, and the dev server never logs (`VITE_TELEMETRY_DEV=1` to test it).
-Scores are client-reported, so the board is cheatable; triggers in `20261020000000_feedback_and_guards.sql`
+Scores are client-reported, so the board is cheatable; triggers in `20261020123134_feedback_and_guards.sql`
 reject runs whose scores don't add up or aren't physically plausible, and rate-limit runs and reports
 (per browser and globally). Nicknames are automatic (`user` + 4 digits from the browser id).
-`events` (`20261022000000_events.sql`) holds the funnel around the runs: `visit` (device, screen, referrer,
+`events` (`20261022113212_events.sql`) holds the funnel around the runs: `visit` (device, screen, referrer,
 `?utm_source=`), `run_start`, `run_abandon` (restarted mid-run, or the tab closed — sent with a keepalive
 fetch), `error` (uncaught errors, engine boot, canvas draws; each distinct one once per page load).
 Read the beta in the dashboard through the `beta_daily`, `beta_deaths`, `beta_scores`, `beta_sources` and
