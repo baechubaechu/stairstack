@@ -140,24 +140,24 @@ export default function Talk({ engineRef, mode, over, quiet }) {
     const s = eng.stats();
     // a restart sends the clock back to zero: whatever was being said is cut off, and the
     // new run starts with a clean slate
-    if (s.time < lastTime.current) {
+    if (s.elapsed < lastTime.current) {
       hush();
       run.current = fresh();
     }
-    lastTime.current = s.time;
+    lastTime.current = s.elapsed;
     if (eng.mode !== "play" || s.paused) return;
     const r = run.current;
     const c = eng.character;
     const feet = c.y - c.hh;
     const head = c.y + c.hh;
 
-    if (!r.hello && s.time > HELLO_AT) r.hello = speak("start");
+    if (!r.hello && s.elapsed > HELLO_AT) r.hello = speak("start");
 
     // A member just let go: did it land where the worker can use it?
     if (s.dropped > r.dropped) {
       const a = r.aim;
       r.dropped = s.dropped;
-      r.lastDrop = s.time;
+      r.lastDrop = s.elapsed;
       if (a && a.face === eng.face) {
         const bottom = a.landing - a.h / 2;
         const top = a.landing + a.h / 2;
@@ -203,8 +203,8 @@ export default function Talk({ engineRef, mode, over, quiet }) {
       r.turns = s.turns;
       speak("turn");
     }
-    if (s.time - r.lastDrop > IDLE_AFTER && c.grounded && gap > LAVA_NEAR) {
-      if (speak("idle")) r.lastDrop = s.time;
+    if (s.elapsed - r.lastDrop > IDLE_AFTER && c.grounded && gap > LAVA_NEAR) {
+      if (speak("idle")) r.lastDrop = s.elapsed;
     }
 
     // The brake slips further as the run goes on; the operator mutters about it.

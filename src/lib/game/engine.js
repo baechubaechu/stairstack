@@ -28,6 +28,7 @@ function createState() {
     trail: [], // [{t, x, feet, face, lava}] every TRAIL_EVERY s, the last TRAIL_SECONDS of them
     death: null, // how the run ended, for the game-over feedback (see gameOver)
     elapsed: 0,
+    clock: 0, // the run's counted time: stands still while the guide holds the run
     best: 0, // the highest the climber's feet have been this run
     timeScore: 0,
     heightScore: 0,
@@ -208,8 +209,9 @@ export function createEngine(RAPIER, input) {
     }
     // standing on a pencilled floor slab makes it real — and lays the next storey above
     if (stepFloors(g)) refresh(g);
-    // only a height the climber is standing on counts — a jump on the spot earns nothing
-    if (character.grounded) reachHeight(state, character.y - character.hh);
+    // only a height the climber is standing on counts — a jump on the spot earns nothing — and
+    // none while the guide holds the run (see advanceRun): the guide's steps score nothing
+    if (character.grounded && !state.lavaHeld) reachHeight(state, character.y - character.hh);
 
     descend(g, dt);
 
@@ -239,7 +241,9 @@ export function createEngine(RAPIER, input) {
       timeScore: state.timeScore,
       heightScore: state.heightScore,
       best: state.best,
-      time: state.elapsed,
+      // the run's counted time (what the score is made of); `elapsed` also counts the guide
+      time: state.clock,
+      elapsed: state.elapsed,
       lava: state.lava,
       cause: state.cause,
       mode: state.mode,
@@ -301,7 +305,8 @@ export function createEngine(RAPIER, input) {
       if (forecastMemo.key !== key) forecastMemo = { key, value: forecastTip(g, p) };
       return forecastMemo.value;
     },
-    // Hold the lava where it is (true) or let it go on rising (false); see advanceRun.
+    // Hold the run (true) or let it go (false): while held the lava stays where it is and the run's
+    // clock — its time score, the speed-up — and its height score stand still; see advanceRun.
     holdLava(on) {
       state.lavaHeld = Boolean(on);
     },

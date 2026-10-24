@@ -46,7 +46,7 @@ function cropToWindow(canvas) {
 }
 const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, timeScore: 0, heightScore: 0, best: 0, time: 0, lava: LAVA_START, dropped: 0, turns: 0, floors: 0, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "slab", nextIds: ["plank", "block", "step"] };
 const snap = (s) =>
-  `${s.score}|${s.time.toFixed(1)}|${s.lava.toFixed(2)}|${s.members}|${s.top.toFixed(1)}|${s.x.toFixed(2)}|${s.yaw.toFixed(3)}|${s.cause}|${s.mode}|${s.paused}|${s.face}|${s.nowId}|${s.nextIds.join(",")}`;
+  `${s.score}|${s.time.toFixed(1)}|${s.elapsed.toFixed(1)}|${s.lava.toFixed(2)}|${s.members}|${s.top.toFixed(1)}|${s.x.toFixed(2)}|${s.yaw.toFixed(3)}|${s.cause}|${s.mode}|${s.paused}|${s.face}|${s.nowId}|${s.nextIds.join(",")}`;
 
 // Which action a key event means. Judged by the physical key code first, because a
 // non-Latin input method (e.g. the Korean IME) reports e.key as a composed character
@@ -364,7 +364,7 @@ export default function Game() {
   // restarted, or left when the tab closed. (Finished runs go to `runs` at game over.)
   const runsRef = useRef(0);
   const runSummary = (s) => ({ time: Number(s.time.toFixed(1)), score: s.score, best: Number(s.best.toFixed(2)), members: s.members, floors: s.floors });
-  const inRun = (s) => s && s.mode === "play" && !s.over && s.time > 0;
+  const inRun = (s) => s && s.mode === "play" && !s.over && s.elapsed > 0;
   useEffect(() => {
     watchErrors();
     trackVisit(isTouchOnly());

@@ -64,7 +64,7 @@ export function descend(g, dt) {
   const a = g.state.active;
   if (!a) return;
   const p = placement(g);
-  const rate = Math.max(0.6, (a.from - p.landing) / AUTO_FALL_SECONDS) * sinkFactor(g.state.elapsed);
+  const rate = Math.max(0.6, (a.from - p.landing) / AUTO_FALL_SECONDS) * sinkFactor(g.state.clock);
   a.y = Math.max(p.landing, a.y - rate * dt);
   // Never settles on its own sooner than MIN_HANG after it appeared: where the stack already
   // reaches the release height there is nothing to sink through, and without this every member

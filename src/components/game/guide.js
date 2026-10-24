@@ -1,9 +1,12 @@
 // The first-run guide. A first-time player gets one short prompt at a time over the view it is
 // about, and each goes away when they have done the thing it asks: drop a member, climb onto
-// one. The lava is held still until both are done, so nobody is burnt before they can move;
-// then it is let go with a warning. After that, three tips each appear once, the first time
-// they matter: walking off an edge turns the tower, the tip arrow, a pencilled floor slab.
-// Everything is remembered per browser; the pause menu can start the guide over.
+// one, walk off the end of the view and round the tower's corner (finding a way on another face
+// is the heart of the game, so it is taught, not left to be found). The run is held until all
+// three are done — the lava still, and nothing scored (see advanceRun) — so nobody is burnt
+// before they can move and nobody earns points by waiting; then it is let go with a warning.
+// After that, three tips each appear once, the first time they matter: walking off an edge (for
+// whoever skipped the steps), the tip arrow, a pencilled floor slab. Everything is remembered
+// per browser; the pause menu can start the guide over.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EDGE_LINE } from "@/lib/game/constants";
 import { track } from "@/lib/telemetry";
@@ -14,8 +17,13 @@ const TIPS_KEY = "stairstack.guide.tips";
 export const STEPS = [
   { id: "drop", target: "plan" },
   { id: "climb", target: "elevation" },
+  { id: "turn", target: "elevation" },
   { id: "lava", target: "elevation" },
 ];
+// The steps during which the run is held.
+const HELD = new Set(["drop", "climb", "turn"]);
+// How high the climber's feet must stand to count as having climbed onto a member, in metres.
+const CLIMBED = 0.2;
 const TIP_TARGET = { edge: "elevation", tip: "plan", slab: "elevation" };
 // How long the lava warning and each tip stay up, in seconds of play.
 const SHOW_FOR = 6;
@@ -46,6 +54,7 @@ export function useGuide(engineRef, stats) {
   const [tip, setTip] = useState(null);
   const tipsShown = useRef(readTips());
   const since = useRef(0); // run time the current lava warning or tip went up
+  const turnsBefore = useRef(0); // corners turned this run when the turn step came up
 
   const live = stats.mode === "play" && !stats.paused && !stats.over;
 
@@ -55,30 +64,40 @@ export function useGuide(engineRef, stats) {
     track("guide", { step: "steps", event: how });
   }, []);
 
-  // Hold the lava while the first two steps are open. Applied on every update, because a
+  // Hold the run while the first three steps are open. Applied on every update, because a
   // restart resets the engine's hold.
   useEffect(() => {
     const eng = engineRef.current;
     if (eng && stats.mode === "play") {
-      eng.holdLava(step === "drop" || step === "climb");
+      eng.holdLava(HELD.has(step));
       eng.holdAutoDrop(step === "drop");
     }
-  }, [engineRef, step, stats.mode, stats.time]);
+  }, [engineRef, step, stats.mode, stats.elapsed]);
 
-  // Move through the steps as the player does what they ask.
+  // Move through the steps as the player does what they ask. (While the run is held the height
+  // score stands still, so the climb is judged by where the climber stands, not by the score.)
   useEffect(() => {
     if (!live || !step) return;
+    const c = engineRef.current?.character;
+    const at = Number(stats.elapsed.toFixed(1));
     if (step === "drop" && stats.manualDrops >= 1) {
-      track("guide", { step: "drop", event: "done", t: Number(stats.time.toFixed(1)) });
+      track("guide", { step: "drop", event: "done", t: at });
       setStep("climb");
-    } else if (step === "climb" && stats.best >= 0.2) {
-      track("guide", { step: "climb", event: "done", t: Number(stats.time.toFixed(1)) });
+    } else if (step === "climb" && c && c.grounded && c.y - c.hh >= CLIMBED) {
+      track("guide", { step: "climb", event: "done", t: at });
+      turnsBefore.current = stats.turns;
+      setStep("turn");
+    } else if (step === "turn" && stats.turns > turnsBefore.current) {
+      track("guide", { step: "turn", event: "done", t: at });
+      // the edge tip has nothing left to teach
+      tipsShown.current.add("edge");
+      write(TIPS_KEY, [...tipsShown.current].join(","));
       since.current = stats.time;
       setStep("lava");
     } else if (step === "lava" && stats.time - since.current > SHOW_FOR) {
       finishSteps("done");
     }
-  }, [live, step, stats.manualDrops, stats.best, stats.time, finishSteps]);
+  }, [live, step, stats.manualDrops, stats.turns, stats.elapsed, stats.time, engineRef, finishSteps]);
 
   // The tips, once the steps are behind them: each the first time it applies, for a few seconds.
   useEffect(() => {

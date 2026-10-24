@@ -13,10 +13,18 @@ export default function ReportDialog({ context, onClose }) {
   const [message, setMessage] = useState("");
   const [state, setState] = useState("idle"); // idle · sending · sent · limited · failed · offline
 
+  // submitFeedback settles within its own time limit; if it ever throws, the form still comes
+  // back from "sending" so the report can be tried again.
   const send = async () => {
     if (!message.trim() || state === "sending") return;
     setState("sending");
-    setState(await submitFeedback(kind, message.trim(), context));
+    let result = "failed";
+    try {
+      result = await submitFeedback(kind, message.trim(), context);
+    } catch {
+      // counted as failed
+    }
+    setState(result);
   };
 
   const note = {

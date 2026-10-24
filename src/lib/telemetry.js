@@ -99,23 +99,33 @@ export async function fetchLeaderboard(limit = 10) {
 
 // Send a bug report or an idea. `context` is a snapshot of the run it was written in. Resolves to
 // "sent", "limited" (the rate guard turned it away), "failed", or "offline" (no Supabase here).
+// It gives up after REQUEST_TIMEOUT_MS like a run does, and anything thrown on the way (no
+// network, a timeout) counts as "failed", so the form never hangs on "sending".
 export async function submitFeedback(kind, message, context) {
   if (!supabase) return "offline";
-  const { error } = await supabase.from("feedback").insert({
-    player_id: playerId(),
-    kind,
-    message: message.slice(0, 2000),
-    context: {
-      ...context,
-      viewport: [window.innerWidth, window.innerHeight],
-      locale: navigator.language,
-      ua: navigator.userAgent.slice(0, 200),
-      url: location.pathname,
-    },
-  });
-  if (!error) return "sent";
-  console.warn("STAIRSTACK: report not saved", error.message);
-  return /rate limit/.test(error.message) ? "limited" : "failed";
+  try {
+    const { error } = await supabase
+      .from("feedback")
+      .insert({
+        player_id: playerId(),
+        kind,
+        message: message.slice(0, 2000),
+        context: {
+          ...context,
+          viewport: [window.innerWidth, window.innerHeight],
+          locale: navigator.language,
+          ua: navigator.userAgent.slice(0, 200),
+          url: location.pathname,
+        },
+      })
+      .abortSignal(AbortSignal.timeout(REQUEST_TIMEOUT_MS));
+    if (!error) return "sent";
+    console.warn("STAIRSTACK: report not saved", error.message);
+    return /rate limit/.test(error.message) ? "limited" : "failed";
+  } catch (err) {
+    console.warn("STAIRSTACK: report not saved", err?.message ?? err);
+    return "failed";
+  }
 }
 
 // ---------------------------------------------------------------- the funnel around the runs

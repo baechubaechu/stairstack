@@ -29,7 +29,7 @@ export function resetRun(state) {
   state.heightScore = 0;
   state.score = 0;
   state.lava = LAVA_START;
-  state.lavaClock = 0;
+  state.clock = 0;
   state.lavaHeld = false;
   state.cause = null;
 }
@@ -43,18 +43,21 @@ export function reachHeight(state, feet) {
   state.score = state.timeScore + state.heightScore;
 }
 
-// One frame of the run's own clock: the time, the score it buys, and the lava's climb. Only
-// called while the world is live, so a pause holds the whole run exactly where it stands.
+// One frame of the run: the time, the score it buys, and the lava's climb. Only called while the
+// world is live, so a pause holds the whole run exactly where it stands.
+// The run keeps two clocks. `elapsed` is how long the world has been running. `clock` is the run
+// that counts — the time score, the lava, and how fast members sink in all go by it — and it
+// stands still while the first-run guide holds the run (until the player has dropped a member,
+// climbed onto one and turned a corner), so waiting in the guide earns nothing and makes nothing
+// harder. Once it is let go the lava waits out the opening, then rises at a pace that grows from
+// the moment it moved.
 export function advanceRun(state, dt) {
   state.elapsed += dt;
-  state.timeScore = Math.floor(state.elapsed * SCORE_PER_SECOND);
-  state.score = state.timeScore + state.heightScore;
-  // The lava keeps its own clock, which stands still while it is held (the first-run guide holds
-  // it until the player has dropped a member and climbed onto one). It waits out the opening,
-  // then rises at a pace that grows from the moment it moved.
   if (state.lavaHeld) return;
-  state.lavaClock += dt;
-  const rising = state.lavaClock - LAVA_DELAY;
+  state.clock += dt;
+  state.timeScore = Math.floor(state.clock * SCORE_PER_SECOND);
+  state.score = state.timeScore + state.heightScore;
+  const rising = state.clock - LAVA_DELAY;
   if (rising > 0) state.lava += (LAVA_SPEED + LAVA_ACCEL * rising) * Math.min(dt, rising);
 }
 

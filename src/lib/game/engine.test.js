@@ -137,12 +137,28 @@ describe("engine", () => {
     engine.holdLava(true);
     run(12); // well past LAVA_DELAY
     expect(engine.stats().lava).toBe(LAVA_START);
-    expect(engine.stats().time).toBeGreaterThan(11); // the run itself carries on
+    expect(engine.stats().elapsed).toBeGreaterThan(11); // the world itself carries on
     engine.holdLava(false);
     run(4);
     expect(engine.stats().lava).toBe(LAVA_START); // the opening grace starts from the release
     run(3);
     expect(engine.stats().lava).toBeGreaterThan(LAVA_START);
+  });
+
+  it("scores nothing while the run is held — waiting in the guide earns no points", () => {
+    engine.start();
+    engine.holdLava(true);
+    engine.character.y = 3 + engine.character.hh; // as if stood on something high
+    run(60);
+    const held = engine.stats();
+    expect(held.time).toBe(0);
+    expect(held.timeScore).toBe(0);
+    expect(held.score).toBe(0);
+    expect(held.elapsed).toBeGreaterThan(59);
+    engine.holdLava(false);
+    run(2);
+    expect(engine.stats().time).toBeCloseTo(2, 1); // the counted time starts at the release
+    expect(engine.stats().timeScore).toBeGreaterThan(0);
   });
 
   it("holds the whole run still while paused", () => {
