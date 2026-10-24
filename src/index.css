@@ -56,6 +56,14 @@
     background-size: 12px 12px, 12px 12px;
     background-position: 0 0, 6px 6px;
   }
+  /* Site paperwork — the work permit, the operating log: squared paper, the only light surface. */
+  .paper-sheet {
+    background-color: #f1ece2;
+    background-image: linear-gradient(rgba(42, 47, 51, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(42, 47, 51, 0.06) 1px, transparent 1px);
+    background-size: 14px 14px;
+    color: #2a2f33;
+  }
   /* Embossed label-maker tape, the name stuck on every switch and panel. */
   .dymo {
     @apply rounded-[2px] bg-[#111] px-1.5 py-[3px] font-mono text-[10px] font-semibold uppercase leading-none tracking-[0.14em] text-[#f4f4f4];

@@ -31,8 +31,8 @@ function Screw() {
   );
 }
 
-// One of the ceiling switches: a push button with its own lamp and a label-tape name. A
-// switch's lamp shows what it is set to, so the state can be read without reading the label.
+// One of the ceiling switches: a push button with its own lamp and its name. A switch's lamp
+// shows what it is set to, so the state can be read without reading the name.
 function Switch({ lamp = "off", children, ...props }) {
   return (
     <button
@@ -41,7 +41,7 @@ function Switch({ lamp = "off", children, ...props }) {
       {...props}
     >
       <Lamp state={lamp} />
-      <span className="dymo">{children}</span>
+      <span className="font-mono text-[11px] font-semibold uppercase leading-none tracking-[0.1em] text-cab-text">{children}</span>
     </button>
   );
 }

@@ -456,6 +456,7 @@ export default function Game() {
         {comic && stats.mode === "menu" && !touchGate ? <ComicIntro onDone={closeComic} /> : null}
         {stats.mode === "play" && stats.paused && !stats.over ? (
           <PauseOverlay
+            stats={stats}
             onResume={togglePause}
             onRestart={restart}
             volume={volume}

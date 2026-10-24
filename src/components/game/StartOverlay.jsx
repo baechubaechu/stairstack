@@ -38,7 +38,7 @@ export default function StartOverlay({ engineState, onStart, onComic }) {
         </div>
 
         {/* the permit itself */}
-        <div className="relative rounded-[2px] bg-[#f1ece2] bg-[linear-gradient(rgba(42,47,51,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(42,47,51,0.06)_1px,transparent_1px)] bg-[length:14px_14px] px-5 pb-5 pt-5 text-[#2a2f33] shadow-[0_2px_0_rgba(0,0,0,0.25)] md:px-7">
+        <div className="paper-sheet relative rounded-[2px] px-5 pb-5 pt-5 shadow-[0_2px_0_rgba(0,0,0,0.25)] md:px-7">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-sign text-[22px] leading-none">{t("permit.title")}</p>
@@ -57,7 +57,7 @@ export default function StartOverlay({ engineState, onStart, onComic }) {
             <button
               type="button"
               data-testid="btn-start-lang"
-              className="dymo hover:bg-[#2a2f33] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ochre"
+              className="rounded-[3px] border border-[#2a2f33]/40 px-2.5 py-1 font-mono text-[11px] font-semibold hover:bg-[#2a2f33]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ochre"
               onClick={() => setLang(lang === "ko" ? "en" : "ko")}
             >
               {t("bar.lang")}
