@@ -168,7 +168,7 @@ const ko = {
   "over.back": "결과로 돌아가기",
   "over.why": "무엇 때문에",
   "over.whyLava": "마지막 3초 동안 {climb} m 오르는 사이, 용암은 {rise} m 올라왔어요. 용암보다 빨리 올라가야 해요.",
-  "over.whyHead": "{type}{ga} 드론 화면에서 작업자에게 떨어졌어요. 운전실에선 멀어 보여도, 작업자 줄 위로는 내리지 마세요.",
+  "over.whyHead": "{type}{ga} 드론 화면에서 작업자에게 떨어졌어요. 운전실에선 멀어 보여도, 드론 화면에선 작업자 위로 내리지 마세요.",
   "over.trail": "점선: 마지막 몇 초 동안 지나온 길",
 
   "report.title": "버그 · 개선 제보",
@@ -443,7 +443,7 @@ const en = {
   "over.back": "Back to results",
   "over.why": "What happened",
   "over.whyLava": "In the last 3 seconds you climbed {climb} m while the lava rose {rise} m. Climb faster than it rises.",
-  "over.whyHead": "A {type} came down on the worker on the drone monitor. It may look far off from the cab, but don't drop onto the worker's line.",
+  "over.whyHead": "A {type} came down on the worker on the drone monitor. It may look far off from the cab, but on the drone monitor, don't drop onto the worker.",
   "over.trail": "Dotted line: the path you took in the last few seconds",
 
   "report.title": "Report a bug or idea",
