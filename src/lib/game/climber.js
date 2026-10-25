@@ -26,7 +26,7 @@ import {
 } from "./constants";
 import { penetration } from "./hull";
 import { beginTurn } from "./turn";
-import { extent } from "./world";
+import { extent, footprint, placement } from "./world";
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
@@ -35,6 +35,9 @@ const SEPARATION = 0.0005;
 
 // A member grazing the column edge is beside the climber, not over it.
 const COLUMN_GRACE = 0.03;
+// How close over the head a member's landing must be to count as landing on the head (placement()
+// sets a landing 0.08 m clear of whatever is under it).
+const HEAD_REST = 0.1;
 
 export function createCharacter() {
   // `x` is the screen-x (u) of the climber on the face being read — the elevation draws them
@@ -76,6 +79,30 @@ export function headStrike(g) {
     return m; // the member that came down on them
   }
   return null;
+}
+
+// Would the member in play, released where it is aimed, come down on the climber? The drone
+// camera has no near or far, so what counts is the elevation alone: its span across the face
+// overlapping the climber's column (as in headStrike), and its way down to where it would land
+// passing the climber's head. How far away it is across the plan makes no difference.
+export function aimOverHead(g) {
+  const { character, state } = g;
+  if (!state.active) return false;
+  const p = placement(g);
+  const { fx, fz } = footprint(p.type, Math.round(p.yaw / (Math.PI / 2)));
+  const f = FACES[state.face];
+  const u = f.axis === "x" ? f.sign * p.x : f.sign * p.z;
+  const half = (f.axis === "x" ? fx : fz) / 2;
+  if (u + half < character.x - character.hw + COLUMN_GRACE || u - half > character.x + character.hw - COLUMN_GRACE) {
+    return false; // beside the climber, not over it
+  }
+  // placement() counts the climber's head as something to land on, so a member with nothing
+  // higher under it "lands" just over the head — which is exactly a drop onto the worker. Only
+  // a member held up above the head by something else is safe.
+  const headTop = character.y + character.hh;
+  const bottom = p.y - p.type.h / 2;
+  const rest = p.landing - p.type.h / 2;
+  return bottom > headTop && rest < headTop + HEAD_REST;
 }
 
 // Sweep the character's centre against the expanded silhouettes: the earliest contact wins

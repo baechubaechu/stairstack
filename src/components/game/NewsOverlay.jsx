@@ -49,6 +49,15 @@ function Ticker({ t }) {
   );
 }
 
+// The member that struck, and the Korean subject particle that fits it: 이 after a final
+// consonant, 가 after a vowel (English ignores {ga}).
+function whyHeadArgs(t, death) {
+  const type = death?.killerType ? t(`member.${death.killerType}`) : "?";
+  const code = type.charCodeAt(type.length - 1) - 0xac00;
+  const ga = code >= 0 && code <= 11171 && code % 28 !== 0 ? "이" : "가";
+  return { type, ga };
+}
+
 // The reporter's lines, put together from how the run went (see docs/story-ko.md §9).
 function reportLines(t, stats, death, rank, best) {
   const m = stats.best.toFixed(1);
@@ -153,6 +162,12 @@ export default function NewsOverlay({ stats, death, photo, board, saveStatus, be
                     </p>
                   ))}
                 </div>
+                {/* a head strike can look unfair from the cab, so say plainly why it counted */}
+                {stats.cause === "head" ? (
+                  <p data-testid="news-why" className="rounded-md bg-amber-950/70 px-3 py-2 text-[12px] leading-snug text-amber-100">
+                    {t("over.whyHead", whyHeadArgs(t, death))}
+                  </p>
+                ) : null}
                 <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
                   <Stat label={t("news.stat.score")} value={stats.score.toLocaleString()} />
                   <Stat label={t("news.stat.time")} value={`${stats.time.toFixed(1)} s`} />

@@ -6,7 +6,7 @@
 //   members, preview           the placed rigid bodies, and where the member in play is aimed
 //   character, state, views    the climber, the run's state, and the derived projections
 import { BLOCKED_SECONDS, CHAR_STEP, COMPASS, FACES, LAVA_START, MEMBER_BY_ID, PHYS_STEP, QUEUE_AHEAD, SEQUENCE } from "./constants";
-import { charStep, createCharacter, headStrike, respawn } from "./climber";
+import { aimOverHead, charStep, createCharacter, headStrike, respawn } from "./climber";
 import { forecastTip, settle } from "./tipping";
 import { descend, release, spawnActive } from "./drop";
 import { seedFloor, stepFloors } from "./floors";
@@ -310,6 +310,8 @@ export function createEngine(RAPIER, input) {
     holdLava(on) {
       state.lavaHeld = Boolean(on);
     },
+    // Whether the member in play, dropped where it is aimed, would come down on the climber.
+    aimOverHead: () => aimOverHead(g),
     holdAutoDrop(on) {
       state.autoDropHeld = Boolean(on);
     },

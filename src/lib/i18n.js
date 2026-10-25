@@ -45,7 +45,7 @@ const ko = {
   "status.paused": "일시정지 — 세상, 탑, 용암, 떨어지던 부재가 모두 멈춰 있어요.",
   "status.play": "버티고 오르세요 — 지금 {score}점 (생존 {time} + 최고 높이 {height}). 갈수록 부재가 빨리 내려오니 용암보다 먼저 쌓아 올리세요.",
   "footer.keys": "이동 A / D · 점프 W 또는 Space · 조준 마우스 · 회전 휠 {deg}° · 떨어뜨리기 왼쪽 클릭 · 화면 끝으로 걸어가면 면 전환 · 일시정지 Esc",
-  "footer.rule": "실루엣 규칙: 깊이는 겹쳐 보여요 — 투영된 모든 면이 단단한 발판이에요",
+  "permit.droneRule": "드론 규칙: 앞뒤 거리는 없어요 — 드론 화면에서 떨어지면 밟을 수도 있고, 맞을 수도 있어요.",
 
   "member.slab": "슬래브",
   "member.plank": "판자",
@@ -168,7 +168,7 @@ const ko = {
   "over.back": "결과로 돌아가기",
   "over.why": "무엇 때문에",
   "over.whyLava": "마지막 3초 동안 {climb} m 오르는 사이, 용암은 {rise} m 올라왔어요. 용암보다 빨리 올라가야 해요.",
-  "over.whyHead": "{type}이(가) 머리 위로 떨어졌어요. 떨어지는 부재 밑에서는 비켜서세요.",
+  "over.whyHead": "{type}{ga} 드론 화면에서 작업자에게 떨어졌어요. 운전실에선 멀어 보여도, 작업자 줄 위로는 내리지 마세요.",
   "over.trail": "점선: 마지막 몇 초 동안 지나온 길",
 
   "report.title": "버그 · 개선 제보",
@@ -197,6 +197,7 @@ const ko = {
   "guide.climb": "드론 카메라 화면을 보며 A / D로 걷고 W·Space로 점프해서 자재 위로 올라가 보세요.",
   "guide.turn": "이제 화면 끝까지 계속 걸어가 보세요. 탑 모퉁이를 돌아 옆 면으로 넘어가요 — 한쪽이 막히면 다른 면에서 길을 찾을 수 있어요.",
   "guide.lava": "이제 용암이 올라오기 시작해요! 계속 쌓고 계속 오르세요.",
+  "guide.overHead": "드론 카메라에는 앞뒤 거리가 안 보여요. 평면상에서는 멀리 내려도, 화면에서는 머리 위예요!",
   "guide.edge": "화면 끝으로 계속 걸어가면 탑의 옆 면으로 돌아가요.",
   "guide.tipArrow": "여기에 놓으면 화살표 쪽으로 기울어요. 받침 위에 무게중심이 오게 놓으면 수평으로 서요.",
   "guide.slab": "점선 바닥판은 한쪽 틈으로만 지나갈 수 있어요. 막혀 있으면 면을 돌려 틈이 보이는 쪽을 찾으세요.",
@@ -319,7 +320,7 @@ const en = {
   "status.paused": "Paused — the world, the stack, the lava and the member in flight are all holding still.",
   "status.play": "Survive and climb — {score} points so far ({time} for time, {height} for your best height). Members arrive faster as it goes on; keep the stack ahead of the lava.",
   "footer.keys": "MOVE A / D · JUMP W or Space · AIM mouse · ROTATE wheel {deg}° · DROP left click · EDGE off either end turns the view · PAUSE Esc",
-  "footer.rule": "Silhouette rule: depth collapses — every projected face is solid, the climber's included",
+  "permit.droneRule": "Drone rule: there's no near or far — whatever lines up on the drone monitor can be stood on, and can land on you.",
 
   "member.slab": "Slab",
   "member.plank": "Plank",
@@ -442,7 +443,7 @@ const en = {
   "over.back": "Back to results",
   "over.why": "What happened",
   "over.whyLava": "In the last 3 seconds you climbed {climb} m while the lava rose {rise} m. Climb faster than it rises.",
-  "over.whyHead": "A {type} came down on your head. Step out from under a falling member.",
+  "over.whyHead": "A {type} came down on the worker on the drone monitor. It may look far off from the cab, but don't drop onto the worker's line.",
   "over.trail": "Dotted line: the path you took in the last few seconds",
 
   "report.title": "Report a bug or idea",
@@ -471,6 +472,7 @@ const en = {
   "guide.climb": "Watching the drone camera, walk with A / D and jump with W or Space — get up onto the material.",
   "guide.turn": "Now keep walking off the end of the view: the worker rounds the tower's corner onto the next face — when one side is blocked, another may have a way up.",
   "guide.lava": "Here comes the lava! Keep stacking, keep climbing.",
+  "guide.overHead": "The drone camera can't see near and far. However far off you drop it in the plan, on the monitor it's right over the worker's head!",
   "guide.edge": "Keep walking off the end of the view and the tower turns to its next face.",
   "guide.tipArrow": "Dropped here it would tip the way the arrow points. Keep its middle over what holds it up and it stays level.",
   "guide.slab": "A dotted floor slab only lets you through its gap on one side. If it's closed here, turn the tower to find the face where the gap shows.",

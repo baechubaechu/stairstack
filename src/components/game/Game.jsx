@@ -10,6 +10,7 @@ import PauseOverlay from "@/components/game/PauseOverlay";
 import ReportDialog from "@/components/game/ReportDialog";
 import MobileGate, { isTouchOnly } from "@/components/game/MobileGate";
 import GuideBubble from "@/components/game/GuideBubble";
+import AimWarning from "@/components/game/AimWarning";
 import FloorBanner from "@/components/game/FloorBanner";
 import BossSubtitle from "@/components/game/BossSubtitle";
 import CabRoof from "@/components/game/CabRoof";
@@ -438,6 +439,7 @@ export default function Game() {
           <CabWindow glow={guide.target === "plan"}>
             <PlanView engineRef={engineRef} onDrop={push} />
             {guide.target === "plan" ? <GuideBubble guide={guide} /> : null}
+            <AimWarning engineRef={engineRef} active={Boolean(guide.id) && guide.index >= 0} />
             <BossSubtitle />
             {engineState !== "ready" ? (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/80">

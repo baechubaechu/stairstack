@@ -79,6 +79,10 @@ export default function StartOverlay({ engineState, onStart, onComic }) {
               {t("permit.hazardValue")}
             </Field>
           </div>
+          {/* the one rule that surprises people: the drone camera has no near or far */}
+          <p data-testid="drone-rule" className="mt-3 text-[12px] leading-relaxed text-[#2a2f33]">
+            {t("permit.droneRule")}
+          </p>
 
           <button
             type="button"

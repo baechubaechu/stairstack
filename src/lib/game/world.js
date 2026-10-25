@@ -141,7 +141,7 @@ export function releaseY(g) {
 
 // The member's footprint across the plan at a yaw that is a whole number of quarter turns: an
 // odd quarter turn swaps its width and depth over.
-function footprint(type, quarter) {
+export function footprint(type, quarter) {
   return quarter % 2 ? { fx: type.d, fz: type.w } : { fx: type.w, fz: type.d };
 }
 
