@@ -144,6 +144,57 @@ function steel(c) {
   }
 }
 
+// Cement bags: plump paper sacks laid in rows, each with a printed band across its middle.
+function cement(c) {
+  const bagW = 21.33;
+  const bagH = 10.67;
+  for (let row = 0; row < TILE / bagH; row++) {
+    const off = row % 2 ? bagW / 2 : 0;
+    for (let x = -off; x < TILE; x += bagW) {
+      const y = row * bagH;
+      c.fillStyle = "rgba(255,250,235,0.16)";
+      c.beginPath();
+      c.roundRect(x + 1, y + 1, bagW - 2, bagH - 2, 3);
+      c.fill();
+      c.strokeStyle = "rgba(90,80,60,0.35)";
+      c.lineWidth = 1;
+      c.stroke();
+      c.fillStyle = "rgba(60,90,140,0.35)";
+      c.fillRect(x + bagW * 0.42, y + 2, bagW * 0.16, bagH - 4);
+    }
+  }
+}
+
+// Film-faced formwork: a smooth, resin-coated panel in its frame, with the holes for the ties.
+function formwork(c) {
+  c.fillStyle = "rgba(255,230,210,0.10)";
+  c.fillRect(0, 0, TILE, TILE / 2);
+  c.strokeStyle = "rgba(60,20,8,0.35)";
+  c.lineWidth = 1.5;
+  c.strokeRect(1, 1, TILE - 2, TILE - 2);
+  for (const x of [TILE * 0.25, TILE * 0.75]) {
+    for (const y of [TILE * 0.25, TILE * 0.75]) {
+      c.fillStyle = "rgba(40,14,4,0.55)";
+      c.beginPath();
+      c.arc(x, y, 2, 0, Math.PI * 2);
+      c.fill();
+    }
+  }
+}
+
+// Steel deck plate: a galvanised sheet folded into ribs along its length.
+function deck(c) {
+  const rib = 10.67;
+  for (let y = 0; y < TILE; y += rib) {
+    c.fillStyle = "rgba(255,255,255,0.28)";
+    c.fillRect(0, y, TILE, 2);
+    c.fillStyle = "rgba(15,25,35,0.28)";
+    c.fillRect(0, y + rib / 2, TILE, 2);
+  }
+  c.fillStyle = "rgba(255,255,255,0.05)";
+  for (let x = 0; x < TILE; x += 16) c.fillRect(x, 0, 1, TILE);
+}
+
 // Basalt: a member the lava has set hard — dark, flecked rock with still-glowing cracks.
 function basalt(c) {
   const r = rng(41);
@@ -186,7 +237,7 @@ function concrete(c) {
   c.stroke();
 }
 
-const PAINTERS = { plywood, glass, bricks, pipes, hbeam: steel, basalt, floor: concrete };
+const PAINTERS = { plywood, glass, bricks, pipes, hbeam: steel, cement, stairs: concrete, lform: formwork, deck, basalt, floor: concrete };
 
 // One texture tile per type, painted once and shared by every canvas.
 const tiles = new Map();

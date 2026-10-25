@@ -19,8 +19,36 @@ export const MEMBER_TYPES = [
   { id: "bricks", label: "Bricks", w: 1.5, h: 1.0, d: 1.5, color: 0xbf5b3f, hex: "#bf5b3f", material: "standard" },
   // a bundle of steel pipes, strapped together
   { id: "pipes", label: "Pipes", w: 2.0, h: 0.5, d: 1.0, color: 0x9aa7ae, hex: "#9aa7ae", material: "standard" },
-  // a steel H beam (for now a plain box; its flanges and web come with the shaped members)
-  { id: "hbeam", label: "H beam", w: 4.0, h: 0.5, d: 0.5, color: 0x5f6f7c, hex: "#5f6f7c", material: "standard" },
+  // a steel H beam lying on its flange: top and bottom flanges and the web between them, so seen
+  // end on it is an H
+  {
+    id: "hbeam", label: "H beam", w: 4.0, h: 0.5, d: 0.5, color: 0x5f6f7c, hex: "#5f6f7c", material: "standard",
+    parts: [
+      { x: 0, y: 0.1875, z: 0, hx: 2.0, hy: 0.0625, hz: 0.25 },
+      { x: 0, y: 0, z: 0, hx: 2.0, hy: 0.125, hz: 0.0625 },
+      { x: 0, y: -0.1875, z: 0, hx: 2.0, hy: 0.0625, hz: 0.25 },
+    ],
+  },
+  // a pallet of cement bags
+  { id: "cement", label: "Cement bags", w: 1.5, h: 0.75, d: 1.5, color: 0xc9bfa8, hex: "#c9bfa8", material: "standard" },
+  // a precast concrete stair: a full-length lower step and an upper step on one half
+  {
+    id: "stairs", label: "Stairs", w: 2.0, h: 1.0, d: 1.0, color: 0xb3aea4, hex: "#b3aea4", material: "standard",
+    parts: [
+      { x: 0, y: -0.25, z: 0, hx: 1.0, hy: 0.25, hz: 0.5 },
+      { x: 0.5, y: 0.25, z: 0, hx: 0.5, hy: 0.25, hz: 0.5 },
+    ],
+  },
+  // an L of formwork panels: a base and a wall standing at one end — its weight leans that way
+  {
+    id: "lform", label: "L formwork", w: 1.5, h: 1.0, d: 1.0, color: 0xb4623a, hex: "#b4623a", material: "standard",
+    parts: [
+      { x: 0, y: -0.375, z: 0, hx: 0.75, hy: 0.125, hz: 0.5 },
+      { x: -0.625, y: 0.125, z: 0, hx: 0.125, hy: 0.375, hz: 0.5 },
+    ],
+  },
+  // a ribbed steel deck plate: long, wide and thin
+  { id: "deck", label: "Deck plate", w: 4.0, h: 0.25, d: 1.5, color: 0x7c8a97, hex: "#7c8a97", material: "standard" },
 ];
 
 export const MEMBER_BY_ID = Object.fromEntries(MEMBER_TYPES.map((t) => [t.id, t]));
@@ -38,8 +66,27 @@ export function partsOf(type) {
   return type.parts ?? [{ x: 0, y: 0, z: 0, hx: type.w / 2, hy: type.h / 2, hz: type.d / 2 }];
 }
 
+// Where a member type's weight sits in its own frame: the parts' centres, each weighted by its
+// volume (a member is all one material). A plain box's is its middle; a stair's leans toward its
+// upper step.
+export function comOf(type) {
+  let v = 0;
+  const c = { x: 0, y: 0, z: 0 };
+  for (const p of partsOf(type)) {
+    const pv = p.hx * p.hy * p.hz;
+    v += pv;
+    c.x += p.x * pv;
+    c.y += p.y * pv;
+    c.z += p.z * pv;
+  }
+  return { x: c.x / v, y: c.y / v, z: c.z / v };
+}
+
 // The drop order: NOW / NEXT read from this, indexed by how many members have been dropped.
-export const SEQUENCE = ["plywood", "glass", "bricks", "pipes", "hbeam", "plywood", "bricks", "glass", "pipes", "plywood"];
+export const SEQUENCE = [
+  "plywood", "glass", "bricks", "pipes", "hbeam", "cement", "stairs",
+  "plywood", "deck", "lform", "bricks", "glass", "cement", "pipes", "stairs", "plywood",
+];
 // How many members after the one in play the queue between the two views shows.
 export const QUEUE_AHEAD = 3;
 

@@ -15,7 +15,7 @@
 // Every tilt is about x or z, so every slope in the tower runs along a grid axis — and a member
 // landing on a slope hangs off its top edge toward the downhill side, so it tips to lie along the
 // slope with the same rule.
-import { GROUND_HALF } from "./constants";
+import { GROUND_HALF, comOf } from "./constants";
 import { convexHull } from "./hull";
 
 // Steps with nothing underneath before a landed member counts as airborne again.
@@ -156,7 +156,10 @@ export function settle(g) {
     if (tip.landed) continue;
     tip.landed = true;
     const t = m.body.translation();
-    const d = overhang(convexHull(support), [t.x, t.z]);
+    // what has to be over the support is the member's weight: a plain box's middle, or for a
+    // shaped one (a stair, an L) wherever its parts put it
+    const c = m.parts.length > 1 ? m.body.worldCom() : t;
+    const d = overhang(convexHull(support), [c.x, c.z]);
     if (!d) continue; // over its support: it stays level
     tip.axis = tipAxis(d, m);
     tip.from = tip.axis === "x" ? t.x : t.z;
@@ -236,7 +239,11 @@ export function forecastTip(g, p) {
   }
   const support = hits.filter((h) => h[2] >= top - FIRST_TOUCH).map((h) => [h[0], h[1]]);
   if (!support.length) return null;
-  const d = overhang(convexHull(support), [p.x, p.z]);
+  // its weight, turned with it by whole quarter turns (see comOf)
+  const com = comOf(p.type);
+  const cos = Math.round(Math.cos(p.yaw));
+  const sin = Math.round(Math.sin(p.yaw));
+  const d = overhang(convexHull(support), [p.x + com.x * cos + com.z * sin, p.z - com.x * sin + com.z * cos]);
   if (!d) return null;
   const flat = { hx: fx / 2, hz: fz / 2, body: { rotation: () => ({ x: 0, y: 0, z: 0, w: 1 }) } };
   const axis = tipAxis(d, flat);
