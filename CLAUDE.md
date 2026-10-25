@@ -30,7 +30,7 @@ Tailwind 3. No backend. Game design notes and history: `CONTEXT.md`. Planned wor
 `src/components/game/` — React UI. `Game.jsx` boots Rapier and owns the single animation loop: each frame
 it steps the engine, then every canvas draws via `useFrame` (`frame.js`). Canvases size themselves with
 `useCanvasSize`. `src/components/ui/button.jsx` is the one shadcn component in use. Alias `@/` → `src/`.
-`PlanView.jsx` draws the plan through `perspective.js` (a camera behind the face being read; render only,
+`PlanView.jsx` draws the plan through `perspective.js` (a perspective camera straight overhead, turned to the face being read; render only,
 the engine never reads it). Every word on screen comes from `src/lib/i18n.js` (Korean default, English
 toggle): React reads it via `useLang()`, canvases call `t()` (imported as `tr` where `t` means time).
 `MobileGate.jsx` turns phones away, `ReportDialog.jsx` sends bug reports / ideas to Supabase.

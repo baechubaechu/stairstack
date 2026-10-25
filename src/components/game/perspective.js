@@ -1,10 +1,12 @@
-// The camera the plan is drawn through: a perspective view down onto the plate from the side the
-// elevation is being read from, so the two windows look at one space — the plan's near edge is
-// the elevation's plane, and its left-right is the elevation's left-right. Drawing only: the game
-// never reads any of this.
+// The camera the plan is drawn through: straight down onto the plate, turned so the side the
+// elevation is being read from is at the bottom — the plan's bottom edge is the elevation's
+// plane, and its left-right is the elevation's left-right. It looks down from a finite height, so
+// there is some perspective: a taller member reads larger, and the sides of members show toward
+// the edges of the view. Drawing only: the game never reads any of this.
 
-// How steeply the camera looks down (from the horizontal), and how far back it stands.
-const PITCH = (54 * Math.PI) / 180;
+// How steeply the camera looks down (from the horizontal; a quarter turn is straight down), and
+// how high above the plate it stands — nearer means stronger perspective.
+const PITCH = Math.PI / 2;
 const DISTANCE = 26;
 
 // The camera's turn about the vertical for each face: 0 looking north (reading the front, from
