@@ -71,7 +71,7 @@ describe("the overhang rule", () => {
 
 describe("members on the grid", () => {
   it("stays level and still over its support", () => {
-    const slab = addMember(g, MEMBER_BY_ID.slab, -0.75, 0.3, -0.75, { x: 0, y: 0, z: 0 });
+    const slab = addMember(g, MEMBER_BY_ID.plywood, -0.75, 0.3, -0.75, { x: 0, y: 0, z: 0 });
     settleFor(1.5);
     const t = slab.body.translation();
     expect([t.x, t.z]).toEqual([-0.75, -0.75]);
@@ -79,10 +79,10 @@ describe("members on the grid", () => {
   });
 
   it("tips a plank hanging off a block's edge along its length only, without twisting", () => {
-    addMember(g, MEMBER_BY_ID.block, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
+    addMember(g, MEMBER_BY_ID.bricks, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
     settleFor(1);
     // the plank's centre sits a metre past the block's +x edge, and half a cell past its +z edge
-    const plank = addMember(g, MEMBER_BY_ID.plank, 0.5, 1.6, 1.0, { x: 0, y: 0, z: 0 });
+    const plank = addMember(g, MEMBER_BY_ID.glass, 0.5, 1.6, 1.0, { x: 0, y: 0, z: 0 });
     settleFor(2);
     expect(plank.tip.axis).toBe("x");
     const r = tilt(plank);
@@ -93,12 +93,12 @@ describe("members on the grid", () => {
   });
 
   it("tips a block landing on a tilted plank to lie along the slope", () => {
-    addMember(g, MEMBER_BY_ID.block, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
+    addMember(g, MEMBER_BY_ID.bricks, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
     settleFor(1);
-    const plank = addMember(g, MEMBER_BY_ID.plank, 0.5, 1.6, 0.0, { x: 0, y: 0, z: 0 });
+    const plank = addMember(g, MEMBER_BY_ID.glass, 0.5, 1.6, 0.0, { x: 0, y: 0, z: 0 });
     settleFor(2);
     const slope = tilt(plank).aboutZ;
-    const block = addMember(g, MEMBER_BY_ID.block, 0.75, 3.5, 0.0, { x: 0, y: 0, z: 0 });
+    const block = addMember(g, MEMBER_BY_ID.bricks, 0.75, 3.5, 0.0, { x: 0, y: 0, z: 0 });
     settleFor(2);
     expect(Math.abs(tilt(block).aboutZ)).toBeGreaterThan(0.05); // it tipped, along x
     expect(Math.abs(tilt(block).aboutX)).toBeLessThan(1e-3);
@@ -106,19 +106,19 @@ describe("members on the grid", () => {
   });
 
   it("never slides a member off down a slope", () => {
-    addMember(g, MEMBER_BY_ID.block, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
+    addMember(g, MEMBER_BY_ID.bricks, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
     settleFor(1);
-    addMember(g, MEMBER_BY_ID.plank, 0.5, 1.6, 0.0, { x: 0, y: 0, z: 0 });
+    addMember(g, MEMBER_BY_ID.glass, 0.5, 1.6, 0.0, { x: 0, y: 0, z: 0 });
     settleFor(2);
     // dropped from high up, right at the low end of the slope
-    const block = addMember(g, MEMBER_BY_ID.block, 1.5, 5, 0.0, { x: 0, y: 0, z: 0 });
+    const block = addMember(g, MEMBER_BY_ID.bricks, 1.5, 5, 0.0, { x: 0, y: 0, z: 0 });
     settleFor(3);
     // a pivot or two over edges moves it a little, never a slide away
     expect(Math.abs(block.body.translation().x - 1.5)).toBeLessThan(0.75);
   });
 
   it("forecasts the tip before the drop, and the drop then tips that way", () => {
-    addMember(g, MEMBER_BY_ID.block, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
+    addMember(g, MEMBER_BY_ID.bricks, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
     settleFor(1);
     // the member in play is a slab, 2.5 × 1.5: over the block it lands level...
     engine.preview.x = -1.25;
@@ -157,9 +157,9 @@ describe("members on the grid", () => {
   });
 
   it("never lets a member dropped from high up fall through a thin one", () => {
-    const plank = addMember(g, MEMBER_BY_ID.plank, 0.25, 0.13, 0, { x: 0, y: 0, z: 0 });
+    const plank = addMember(g, MEMBER_BY_ID.glass, 0.25, 0.13, 0, { x: 0, y: 0, z: 0 });
     settleFor(0.5);
-    const slab = addMember(g, MEMBER_BY_ID.slab, 0.25, 30, 0, { x: 0, y: 0, z: 0 }); // ~23 m/s by the time it arrives
+    const slab = addMember(g, MEMBER_BY_ID.plywood, 0.25, 30, 0, { x: 0, y: 0, z: 0 }); // ~23 m/s by the time it arrives
     settleFor(3);
     const plankTop = plank.body.translation().y + plank.hy;
     expect(slab.body.translation().y - slab.hy).toBeGreaterThan(plankTop - 0.05);

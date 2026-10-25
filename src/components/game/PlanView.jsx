@@ -1,14 +1,15 @@
 import { useEffect, useRef } from "react";
 import { useFrame } from "@/components/game/frame";
-import { paintMember } from "@/components/game/art/materials";
+import { faceMatrix, paintMember } from "@/components/game/art/materials";
+import { paintOrder } from "@/components/game/paintOrder";
 import { drawFoundation, drawSiteGround, drawSiteObjects } from "@/components/game/art/site";
 import { createCamera, easeYaw, yawFor } from "@/components/game/perspective";
 import useCanvasSize from "@/components/game/useCanvasSize";
 import { MONO } from "@/lib/game/canvas";
-import { AIM_LIMIT, CELL, CHARACTER, FACES, GROUND_HALF, ROTATE_STEP_DEG, VIEW_FOLLOW } from "@/lib/game/constants";
-import { boxVertices, memberVertices } from "@/lib/game/elevation";
+import { AIM_LIMIT, CELL, CHARACTER, FACES, GROUND_HALF, ROTATE_STEP_DEG, VIEW_FOLLOW, partsOf } from "@/lib/game/constants";
+import { boxVertices, memberParts, shapeParts } from "@/lib/game/elevation";
 import { quatFromEuler } from "@/lib/game/world";
-import { ACCENT, ACCENT_TINT, CLIMBER_GUIDE, FIGURE, GRID, INK_FAINT, PAPER, SHADOW, edgeOf, scaleHex } from "@/lib/game/palette";
+import { ACCENT, ACCENT_TINT, CLIMBER_GUIDE, FIGURE, GRID, INK_FAINT, PAPER, SHADOW, edgeOf } from "@/lib/game/palette";
 
 const ROTATE_STEP = (ROTATE_STEP_DEG * Math.PI) / 180;
 const clampAim = (v) => Math.max(-AIM_LIMIT, Math.min(AIM_LIMIT, v));
@@ -101,23 +102,25 @@ function drawBox(ctx, cam, verts, { type, hex, alpha = 1, dash = null }) {
   ctx.globalAlpha = alpha;
   for (const { f, up } of faces) {
     const poly = f.idx.map((i) => [pts[i].x, pts[i].y]);
-    if (up > 0.7) {
-      // the top: its material, grain running along the member's own x
-      const e = [pts[f.idx[1]].x - pts[f.idx[0]].x, pts[f.idx[1]].y - pts[f.idx[0]].y];
-      const ppm = pts[f.idx[0]].ppm;
-      paintMember(ctx, poly, id, id, { type, hex, screenAngle: Math.atan2(e[1], e[0]), scale: ppm, outline: edgeOf(hex), dash });
-    } else {
+    // Every face wears the material, laid flat on it: the tile is skewed to the face's two edges
+    // from its first corner, so a tilted top or a side seen at a slant keeps its lines true to
+    // the member (a plywood side shows its laminations, a brick side its courses).
+    const [a, b, , d] = f.idx;
+    const ea = [pts[b].x - pts[a].x, pts[b].y - pts[a].y];
+    const eb = [pts[d].x - pts[a].x, pts[d].y - pts[a].y];
+    const lenA = Math.hypot(verts[b][0] - verts[a][0], verts[b][1] - verts[a][1], verts[b][2] - verts[a][2]) || 1;
+    const lenB = Math.hypot(verts[d][0] - verts[a][0], verts[d][1] - verts[a][1], verts[d][2] - verts[a][2]) || 1;
+    // lay the grain along the face's longer edge
+    const matrix = lenA >= lenB ? faceMatrix([pts[a].x, pts[a].y], ea, eb, lenA, lenB) : faceMatrix([pts[a].x, pts[a].y], eb, ea, lenB, lenA);
+    paintMember(ctx, poly, id, id, { type, hex, scale: pts[a].ppm, outline: edgeOf(hex), dash, matrix });
+    if (up <= 0.7) {
+      // the sides are in the member's own shade, the underside deepest
       ctx.beginPath();
       ctx.moveTo(poly[0][0], poly[0][1]);
       for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]);
       ctx.closePath();
-      ctx.fillStyle = scaleHex(hex, up < -0.7 ? 0.5 : 0.72);
+      ctx.fillStyle = `rgba(20,12,6,${up < -0.7 ? 0.5 : 0.28})`;
       ctx.fill();
-      if (dash) ctx.setLineDash(dash);
-      ctx.strokeStyle = edgeOf(hex);
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.setLineDash([]);
     }
   }
   ctx.restore();
@@ -316,11 +319,10 @@ export default function PlanView({ engineRef, onDrop }) {
 
     if (!eng) return;
 
-    // Contact shadows on the ground: each member's footprint, darker the closer it sits to it.
+    // Contact shadows on the ground: each member's footprint (part by part), darker the closer it
+    // sits to it.
     const ground = floorTop ?? 0;
-    for (const m of eng.members) {
-      if (m.floor) continue;
-      const vs = memberVertices(m);
+    for (const vs of eng.members.filter((m) => !m.floor).flatMap((m) => memberParts(m))) {
       const ys = vs.map((p) => p[1]);
       const lo = Math.min(...ys);
       if (lo < ground - 0.05) continue; // under the deck: hidden, and no shadow on it
@@ -339,15 +341,25 @@ export default function PlanView({ engineRef, onDrop }) {
       ctx.fill();
     }
 
-    // every member as a box, far ones first; what the lava has closed over goes under its surface
+    // every member as boxes (one per part), what is under painted before what is on top of it
+    // (see paintOrder.js); what the lava has closed over goes under its surface
     const lava = eng.lava;
-    const boxes = eng.members.map((m) => {
-      const verts = memberVertices(m);
-      const ctr = verts.reduce((s, p) => [s[0] + p[0] / 8, s[1] + p[1] / 8, s[2] + p[2] / 8], [0, 0, 0]);
-      const top = Math.max(...verts.map((p) => p[1]));
-      return { m, verts, top, depth: cam.project(ctr[0], ctr[1], ctr[2]).depth };
-    });
-    boxes.sort((a, b) => b.depth - a.depth || a.top - b.top);
+    const boxes = paintOrder(
+      eng.members.flatMap((m) =>
+        memberParts(m).map((verts) => {
+          const top = Math.max(...verts.map((p) => p[1]));
+          const rect = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+          for (const v of verts) {
+            const s = cam.project(v[0], v[1], v[2]);
+            rect.x0 = Math.min(rect.x0, s.x);
+            rect.x1 = Math.max(rect.x1, s.x);
+            rect.y0 = Math.min(rect.y0, s.y);
+            rect.y1 = Math.max(rect.y1, s.y);
+          }
+          return { m, verts, top, rect };
+        }),
+      ),
+    );
 
     const drawOne = ({ m, verts }, faint) => {
       if (faint) {
@@ -465,12 +477,9 @@ export default function PlanView({ engineRef, onDrop }) {
       ctx.lineTo(to.x, to.y);
       ctx.stroke();
       ctx.restore();
-      drawBox(ctx, cam, boxVertices(hx, hy, hz, { x: pl.x, y: pl.y, z: pl.z }, q), {
-        type: pl.type.id,
-        hex: pl.type.hex,
-        alpha: 0.85,
-        dash: [6, 4],
-      });
+      for (const verts of shapeParts(partsOf(pl.type), { x: pl.x, y: pl.y, z: pl.z }, q)) {
+        drawBox(ctx, cam, verts, { type: pl.type.id, hex: pl.type.hex, alpha: 0.85, dash: [6, 4] });
+      }
 
       const tip = eng.tipForecast();
       if (tip) {

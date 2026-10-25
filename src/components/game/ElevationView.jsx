@@ -350,8 +350,9 @@ export default function ElevationView({ engineRef, snapRef }) {
       // shadows first, so no member's shadow falls across one in front of it (a pencilled floor
       // slab isn't solid yet, so it throws none)
       for (const sil of proj.sil) if (!(sil.floor && !sil.active)) shadeUnder(ctx, sil.poly, X, Y, scale);
-      // every member keeps its own projected polygon — gaps stay open
-      for (const sil of proj.sil) {
+      // every member keeps its own projected polygon — gaps stay open — painted far to near, so
+      // where two overlap on the monitor the one standing nearer the viewer is in front
+      for (const sil of [...proj.sil].sort((a, b) => a.near - b.near)) {
         if (sil.floor && !sil.active) {
           // a floor slab nobody has stood on yet is pencilled in: faint, with a dashed edge,
           // so what falls through it and what stands under it still read
@@ -369,7 +370,7 @@ export default function ElevationView({ engineRef, snapRef }) {
       if (!act || act.poly.length < 3) crane.hook = null;
       drawRetract(ctx, X, Y, view, crane, scale);
       if (act && act.poly.length >= 3) {
-        paintMember(ctx, act.poly, X, Y, { type: act.type, hex: act.hex, screenAngle: -act.angle, scale, dash: [6, 4] });
+        for (const poly of act.parts) paintMember(ctx, poly, X, Y, { type: act.type, hex: act.hex, screenAngle: -act.angle, scale, dash: [6, 4] });
         // it hangs from the crane — whose brake is going
         crane.hook = drawCrane(ctx, act.poly, X, Y, view, crane, t, strainOf(eng), scale);
         // If it will tip across this face, a curved arrow off the end that goes down. A tip

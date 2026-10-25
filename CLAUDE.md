@@ -73,6 +73,10 @@ randomness (embers, dust) is fine there; the engine itself must stay determinist
   member (`SIDE_GAP`), soft CCD instead of full CCD (full CCD hung the solver on tall heaps), releases
   lifted clear of overlaps (`clearOf` in `drop.js`), and `kicked()` as a last safety net. The
   "never flings" test in `tipping.test.js` guards all of it.
+- Member types (`MEMBER_TYPES` in `constants.js`) are a bounding box `w × h × d` plus optional `parts`
+  (boxes in the member's frame) and a `material` (`MATERIALS`: density, friction, restitution). Every
+  part gets its own collider and its own silhouette polygon (`memberParts`), so shaped members keep
+  their notches; `memberVertices` is all the corners together, for extents. Plans: `docs/materials-plan.md`.
 - `window.__perf` (dev only) holds the smoothed step / draw cost of a frame in ms.
 
 ## Supabase (run logs + leaderboard)

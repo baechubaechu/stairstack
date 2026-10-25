@@ -68,10 +68,10 @@ export function createEngine(RAPIER, input) {
 
   function seedStarter() {
     // on the grid like everything dropped later; the plank leans from the floor onto the block
-    addMember(g, MEMBER_BY_ID.slab, -3.25, 0.13, -2.25, { x: 0, y: 0, z: 0 });
-    addMember(g, MEMBER_BY_ID.slab, -0.75, 0.13, -0.75, { x: 0, y: 0, z: 0 });
-    addMember(g, MEMBER_BY_ID.block, 1.75, 0.5, 0.25, { x: 0, y: 0, z: 0 });
-    addMember(g, MEMBER_BY_ID.plank, -0.25, 0.62, 1.0, { x: 0, y: 0, z: 0.3 });
+    addMember(g, MEMBER_BY_ID.plywood, -3.25, 0.13, -2.25, { x: 0, y: 0, z: 0 });
+    addMember(g, MEMBER_BY_ID.plywood, -0.75, 0.13, -0.75, { x: 0, y: 0, z: 0 });
+    addMember(g, MEMBER_BY_ID.bricks, 1.75, 0.5, 0.25, { x: 0, y: 0, z: 0 });
+    addMember(g, MEMBER_BY_ID.glass, -0.25, 0.62, 1.0, { x: 0, y: 0, z: 0.3 });
     seedFloor(g);
     refresh(g);
   }

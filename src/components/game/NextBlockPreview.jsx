@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { useFrame } from "@/components/game/frame";
 import { fitCanvas } from "@/lib/game/canvas";
-import { MEMBER_BY_ID } from "@/lib/game/constants";
+import { MEMBER_BY_ID, partsOf } from "@/lib/game/constants";
 import { scaleHex } from "@/lib/game/palette";
 
 // The eight corners of a box, and its six faces with their outward normals.
@@ -51,19 +51,21 @@ export default function NextBlockPreview({ typeId, className = "h-[46px] w-[46px
     const scale = (Math.min(w, h) * 0.44) / Math.max(hx, hy, hz);
     const cx0 = w / 2;
     const cy0 = h / 2;
-    const pts = CORNERS.map((c) => {
-      const r = rot([c[0] * hx, c[1] * hy, c[2] * hz]);
-      return { x: cx0 + r[0] * scale, y: cy0 - r[1] * scale, z: r[2] };
-    });
+    // every face of every part (a member that is not a plain box is several), far ones first
+    const faces = [];
+    for (const p of partsOf(type)) {
+      const pts = CORNERS.map((c) => {
+        const r = rot([p.x + c[0] * p.hx, p.y + c[1] * p.hy, p.z + c[2] * p.hz]);
+        return { x: cx0 + r[0] * scale, y: cy0 - r[1] * scale, z: r[2] };
+      });
+      for (const face of FACES) {
+        const z = (pts[face.idx[0]].z + pts[face.idx[1]].z + pts[face.idx[2]].z + pts[face.idx[3]].z) / 4;
+        faces.push({ face, pts, z });
+      }
+    }
+    faces.sort((a, b) => a.z - b.z);
 
-    // painter's order: the far faces first
-    const order = FACES.map((f, i) => ({
-      i,
-      z: (pts[f.idx[0]].z + pts[f.idx[1]].z + pts[f.idx[2]].z + pts[f.idx[3]].z) / 4,
-    })).sort((a, b) => a.z - b.z);
-
-    for (const { i } of order) {
-      const face = FACES[i];
+    for (const { face, pts } of faces) {
       const n = rot(face.n);
       const lit = 0.4 + 0.6 * Math.max(0, n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]);
       ctx.beginPath();

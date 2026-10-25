@@ -53,15 +53,17 @@ export function holdSquare(body) {
 function supportPoints(world, m) {
   const pts = [];
   const cy = m.body.translation().y;
-  world.contactPairsWith(m.collider, (other) => {
-    world.contactPair(m.collider, other, (manifold) => {
-      if (Math.abs(manifold.normal().y) < 0.5) return;
-      for (let i = 0; i < manifold.numSolverContacts(); i++) {
-        const p = manifold.solverContactPoint(i);
-        if (p.y < cy) pts.push([p.x, p.z]);
-      }
+  for (const collider of m.colliders) {
+    world.contactPairsWith(collider, (other) => {
+      world.contactPair(collider, other, (manifold) => {
+        if (Math.abs(manifold.normal().y) < 0.5) return;
+        for (let i = 0; i < manifold.numSolverContacts(); i++) {
+          const p = manifold.solverContactPoint(i);
+          if (p.y < cy) pts.push([p.x, p.z]);
+        }
+      });
     });
-  });
+  }
   return pts;
 }
 

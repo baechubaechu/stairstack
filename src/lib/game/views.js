@@ -1,7 +1,7 @@
 // What both views read: the same rigid bodies projected onto an elevation face (silhouettes)
 // and onto the plan (footprints), plus the climber-expanded silhouettes the climb collides with.
-import { FACES, GROUND_HALF } from "./constants";
-import { boxVertices, faceU, memberVertices, quatToMat3 } from "./elevation";
+import { FACES, GROUND_HALF, partsOf } from "./constants";
+import { faceNear, faceU, memberParts, quatToMat3, shapeParts } from "./elevation";
 import { convexHull, expandForBox, penetration } from "./hull";
 import { placement, quatFromEuler } from "./world";
 
@@ -29,26 +29,42 @@ function grainAngle(m, f) {
   return Math.hypot(xu, xy) >= Math.hypot(zu, zy) ? Math.atan2(xy, xu) : Math.atan2(zy, zu);
 }
 
+// One polygon per part of a member on a face: a member that is not a plain box keeps its
+// notches, since each part's silhouette is convex but their union need not be.
+const partPolys = (parts, f) => parts.map((vs) => convexHull(vs.map((v) => [faceU(f, v), v[1]]))).filter((p) => p.length >= 3);
+
+// The same, each with how near its part's centre is to the viewer (for drawing order only).
+const partSils = (parts, f) =>
+  parts
+    .map((vs) => ({
+      poly: convexHull(vs.map((v) => [faceU(f, v), v[1]])),
+      near: vs.reduce((s, v) => s + faceNear(f, v), 0) / vs.length,
+    }))
+    .filter((p) => p.poly.length >= 3);
+
 // Members projected onto one face: the face being read drives collision, the other faces
-// are what the elevation shows while it turns. `type` and `angle` are for drawing only.
-// Basalt is projected once per face and kept, since it never moves again.
+// are what the elevation shows while it turns — one entry per part. `type` and `angle` are for
+// drawing only. Basalt is projected once per face and kept, since it never moves again.
 export function project(g, faceId) {
   const f = FACES[faceId];
   const out = [];
   for (const m of g.members) {
     if (m.stone) {
-      const poly = (m.stone.sil[faceId] ??= convexHull(m.stone.verts.map((v) => [faceU(f, v), v[1]])));
-      if (poly.length >= 3) out.push({ hex: m.hex, color: m.color, poly, type: "basalt", angle: 0, stone: true });
+      const sils = (m.stone.sil[faceId] ??= partSils(m.stone.parts, f));
+      for (const { poly, near } of sils) out.push({ hex: m.hex, color: m.color, poly, near, type: "basalt", angle: 0, stone: true });
       continue;
     }
-    const poly = convexHull(memberVertices(m).map((v) => [faceU(f, v), v[1]]));
-    if (poly.length >= 3) {
+    const sils = partSils(memberParts(m), f);
+    if (!sils.length) continue;
+    const angle = grainAngle(m, f);
+    for (const { poly, near } of sils) {
       out.push({
         hex: m.hex,
         color: m.color,
         poly,
+        near,
         type: m.type.id,
-        angle: grainAngle(m, f),
+        angle,
         // a floor slab is drawn pencilled until the climber has stood on it
         floor: !!m.floor,
         active: m.floor ? m.floor.active : false,
@@ -59,20 +75,16 @@ export function project(g, faceId) {
 }
 
 // The member on its way down is not a body yet, but it occupies a real column of the
-// stack: it is drawn as a block there, and a click turns it into one.
+// stack: it is drawn as a block there, and a click turns it into one. `poly` is its whole
+// outline (what the crane holds and the tip arrow runs off), `parts` what is painted.
 function projectActive(g, faceId) {
   if (!g.state.active) return null;
   const f = FACES[faceId];
   const pl = placement(g);
-  const verts = boxVertices(
-    pl.type.w / 2,
-    pl.type.h / 2,
-    pl.type.d / 2,
-    { x: pl.x, y: pl.y, z: pl.z },
-    quatFromEuler(0, pl.yaw, 0),
-  );
-  const poly = convexHull(verts.map((v) => [faceU(f, v), v[1]]));
-  return poly.length >= 3 ? { hex: pl.type.hex, color: pl.type.color, poly, type: pl.type.id, angle: 0 } : null;
+  const parts = shapeParts(partsOf(pl.type), { x: pl.x, y: pl.y, z: pl.z }, quatFromEuler(0, pl.yaw, 0));
+  const poly = convexHull(parts.flat().map((v) => [faceU(f, v), v[1]]));
+  if (poly.length < 3) return null;
+  return { hex: pl.type.hex, color: pl.type.color, poly, parts: partPolys(parts, f), type: pl.type.id, angle: 0 };
 }
 
 // Everything the elevation needs to draw one face.
@@ -96,21 +108,24 @@ export function refresh(g) {
   for (const m of g.members) {
     if (m.stone) {
       // basalt keeps the footprint it set with
-      m.stone.plan ??= convexHull(m.stone.verts.map((v) => [v[0], v[2]]));
-      if (m.stone.plan.length >= 3) {
-        views.plans.push({ hex: m.hex, color: m.color, poly: m.stone.plan, top: m.stone.top, type: "basalt", angle: 0, stone: true });
+      m.stone.plan ??= m.stone.parts.map((vs) => convexHull(vs.map((v) => [v[0], v[2]])));
+      for (const poly of m.stone.plan) {
+        if (poly.length >= 3) {
+          views.plans.push({ hex: m.hex, color: m.color, poly, top: m.stone.top, type: "basalt", angle: 0, stone: true });
+        }
       }
       continue;
     }
-    const verts = memberVertices(m);
-    const plan = convexHull(verts.map((v) => [v[0], v[2]]));
-    if (plan.length >= 3) {
+    // for drawing: the way the member's local X side runs across the plan
+    const R = quatToMat3(m.body.rotation());
+    const angle = Math.atan2(R[6], R[0]);
+    const floor = m.floor ? { active: m.floor.active } : null;
+    // one footprint per part, each at the height of its own top
+    for (const verts of memberParts(m)) {
+      const plan = convexHull(verts.map((v) => [v[0], v[2]]));
+      if (plan.length < 3) continue;
       let top = 0;
       for (const v of verts) if (v[1] > top) top = v[1];
-      // for drawing: the way the member's local X side runs across the plan
-      const R = quatToMat3(m.body.rotation());
-      const angle = Math.atan2(R[6], R[0]);
-      const floor = m.floor ? { active: m.floor.active } : null;
       views.plans.push({ hex: m.hex, color: m.color, poly: plan, top, floor, type: m.type.id, angle });
     }
   }

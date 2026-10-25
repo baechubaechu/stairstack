@@ -16,94 +16,105 @@ function rng(seed) {
   };
 }
 
-// Ochre timber: long, gently wavering grain lines and the odd knot.
-function timber(c) {
+// The tile's origin lands on the middle of the member it fills (see paintMember), so rows near
+// the top and bottom of a tile sit just above and below a member's centre line.
+
+// Plywood: thin sheets stacked flat — the laminations show as close lines along the bundle, with
+// the grain of the top sheet faint across them and a lifting strap round it.
+function plywood(c) {
   const r = rng(7);
-  c.strokeStyle = "rgba(92,48,8,0.28)";
+  for (let y = 0; y < TILE; y += 3) {
+    c.fillStyle = r() > 0.5 ? "rgba(120,70,20,0.16)" : "rgba(255,240,205,0.14)";
+    c.fillRect(0, y, TILE, 1.5);
+  }
+  c.strokeStyle = "rgba(92,48,8,0.18)";
   c.lineWidth = 1;
-  for (let i = 0; i < 9; i++) {
-    const y0 = (i + r() * 0.6) * (TILE / 9);
+  for (let i = 0; i < 4; i++) {
+    const y0 = r() * TILE;
     c.beginPath();
     for (let x = 0; x <= TILE; x += 4) {
-      const y = y0 + Math.sin((x / TILE) * Math.PI * 2 + i) * 1.2;
+      const y = y0 + Math.sin((x / TILE) * Math.PI * 2 + i) * 1.5;
       if (x === 0) c.moveTo(x, y);
       else c.lineTo(x, y);
     }
     c.stroke();
   }
-  c.strokeStyle = "rgba(92,48,8,0.35)";
-  c.beginPath();
-  c.ellipse(TILE * 0.68, TILE * 0.42, 5, 2.2, 0, 0, Math.PI * 2);
-  c.stroke();
+  c.fillStyle = "rgba(40,60,120,0.55)";
+  c.fillRect(TILE * 0.7, 0, 4, TILE);
 }
 
-// Terracotta: rows of short clay tiles with dark joints and a fired, mottled face.
-function terracotta(c) {
-  const r = rng(11);
-  for (let i = 0; i < 40; i++) {
-    c.fillStyle = `rgba(${r() > 0.5 ? "255,220,190" : "90,30,10"},0.10)`;
-    c.fillRect(r() * TILE, r() * TILE, 3 + r() * 5, 2 + r() * 3);
-  }
-  c.strokeStyle = "rgba(70,22,6,0.35)";
-  c.lineWidth = 1;
-  c.beginPath();
-  for (let x = 0; x <= TILE; x += 16) {
-    c.moveTo(x, 0);
-    c.lineTo(x, TILE);
-  }
-  c.moveTo(0, TILE / 2);
-  c.lineTo(TILE, TILE / 2);
-  c.stroke();
-}
-
-// Glass curtain wall: mullions on a grid, and a pale reflection streak across the panes.
+// Glass: pale panes stacked flat in their crate — faint lines between the sheets, and bright
+// reflections slanting across.
 function glass(c) {
-  const g = c.createLinearGradient(0, 0, TILE, TILE);
-  g.addColorStop(0.0, "rgba(255,255,255,0)");
-  g.addColorStop(0.42, "rgba(255,255,255,0)");
-  g.addColorStop(0.5, "rgba(255,255,255,0.32)");
-  g.addColorStop(0.58, "rgba(255,255,255,0)");
-  c.fillStyle = g;
-  c.fillRect(0, 0, TILE, TILE);
-  c.strokeStyle = "rgba(20,40,60,0.45)";
-  c.lineWidth = 1.5;
-  c.beginPath();
-  for (let x = 0; x <= TILE; x += 21.33) {
-    c.moveTo(x, 0);
-    c.lineTo(x, TILE);
-  }
-  c.moveTo(0, TILE / 2);
-  c.lineTo(TILE, TILE / 2);
-  c.stroke();
-}
-
-// Dressed stone: courses of blocks laid in a running bond.
-function stone(c) {
-  const r = rng(23);
-  for (let i = 0; i < 30; i++) {
-    c.fillStyle = `rgba(${r() > 0.5 ? "255,255,240" : "30,50,20"},0.09)`;
+  c.fillStyle = "rgba(255,255,255,0.10)";
+  for (let y = 1; y < TILE; y += 4) c.fillRect(0, y, TILE, 1);
+  for (const [x0, w, a] of [[8, 6, 0.38], [20, 2, 0.28], [44, 10, 0.3]]) {
+    c.fillStyle = `rgba(255,255,255,${a})`;
     c.beginPath();
-    c.arc(r() * TILE, r() * TILE, 1 + r() * 2, 0, Math.PI * 2);
+    c.moveTo(x0, TILE);
+    c.lineTo(x0 + w, TILE);
+    c.lineTo(x0 + w + TILE * 0.5, 0);
+    c.lineTo(x0 + TILE * 0.5, 0);
+    c.closePath();
     c.fill();
   }
-  c.strokeStyle = "rgba(30,48,20,0.4)";
-  c.lineWidth = 1.2;
+  c.strokeStyle = "rgba(20,60,70,0.35)";
+  c.lineWidth = 1;
   c.beginPath();
-  const rowH = TILE / 4;
-  for (let row = 0; row < 4; row++) {
-    const y = row * rowH;
+  c.moveTo(0, TILE / 2);
+  c.lineTo(TILE, TILE / 2);
+  c.stroke();
+}
+
+// Bricks: fired bricks in a running bond — mortar joints, and each brick a little lighter or
+// darker than the next.
+function bricks(c) {
+  const r = rng(11);
+  const rowH = 8;
+  const brickW = 16;
+  for (let row = 0; row < TILE / rowH; row++) {
+    const off = row % 2 ? brickW / 2 : 0;
+    for (let x = -off; x < TILE; x += brickW) {
+      c.fillStyle = r() > 0.5 ? "rgba(255,210,180,0.10)" : "rgba(70,18,6,0.14)";
+      c.fillRect(x + 1, row * rowH + 1, brickW - 2, rowH - 2);
+    }
+  }
+  c.strokeStyle = "rgba(240,225,205,0.55)";
+  c.lineWidth = 1;
+  c.beginPath();
+  for (let row = 0; row < TILE / rowH; row++) {
+    const y = row * rowH + 0.5;
     c.moveTo(0, y);
     c.lineTo(TILE, y);
-    const off = row % 2 ? TILE / 4 : 0;
-    for (let x = off; x < TILE; x += TILE / 2) {
-      c.moveTo(x, y);
-      c.lineTo(x, y + rowH);
+    const off = row % 2 ? brickW / 2 : 0;
+    for (let x = off; x < TILE; x += brickW) {
+      c.moveTo(x + 0.5, y);
+      c.lineTo(x + 0.5, y + rowH);
     }
   }
   c.stroke();
 }
 
-// Painted steel: a brushed finish and a row of rivets along the member.
+// Steel pipes: a bundle of galvanised tubes lying side by side — each with a bright highlight
+// and a shaded underside along its length — held by yellow straps.
+function pipes(c) {
+  const tube = 8;
+  for (let y = 0; y < TILE; y += tube) {
+    c.fillStyle = "rgba(255,255,255,0.32)";
+    c.fillRect(0, y + 1.5, TILE, 1.5);
+    c.fillStyle = "rgba(20,30,40,0.30)";
+    c.fillRect(0, y + tube - 2, TILE, 2);
+  }
+  for (const x of [TILE * 0.2, TILE * 0.72]) {
+    c.fillStyle = "rgba(240,190,40,0.85)";
+    c.fillRect(x, 0, 4, TILE);
+    c.fillStyle = "rgba(90,60,0,0.35)";
+    c.fillRect(x + 3, 0, 1, TILE);
+  }
+}
+
+// Structural steel: a mill-scale finish brushed along the beam, the lines where the flanges meet
+// the web, and a bolt now and then.
 function steel(c) {
   c.strokeStyle = "rgba(255,255,255,0.07)";
   c.lineWidth = 1;
@@ -113,9 +124,15 @@ function steel(c) {
     c.lineTo(TILE, y);
   }
   c.stroke();
+  for (const y of [10, TILE - 10]) {
+    c.fillStyle = "rgba(10,16,22,0.45)";
+    c.fillRect(0, y, TILE, 1.5);
+    c.fillStyle = "rgba(255,255,255,0.18)";
+    c.fillRect(0, y + 1.5, TILE, 1);
+  }
   for (const y of [TILE * 0.22, TILE * 0.78]) {
-    for (let x = 8; x < TILE; x += 16) {
-      c.fillStyle = "rgba(30,15,40,0.45)";
+    for (let x = 8; x < TILE; x += 32) {
+      c.fillStyle = "rgba(12,16,20,0.5)";
       c.beginPath();
       c.arc(x, y, 2, 0, Math.PI * 2);
       c.fill();
@@ -169,7 +186,7 @@ function concrete(c) {
   c.stroke();
 }
 
-const PAINTERS = { slab: timber, plank: terracotta, block: glass, step: stone, beam: steel, basalt, floor: concrete };
+const PAINTERS = { plywood, glass, bricks, pipes, hbeam: steel, basalt, floor: concrete };
 
 // One texture tile per type, painted once and shared by every canvas.
 const tiles = new Map();
@@ -227,10 +244,25 @@ export function shadeUnder(ctx, poly, X, Y, scale) {
   ctx.restore();
 }
 
+// The pattern transform that lays a material flat on one face of a box seen in perspective: the
+// face's corner `o` and its two edges `ea` (along the member's grain) and `eb` on screen, and
+// how long those edges are in metres. The tile is skewed with the face, so its lines meet the
+// face's edges the way they would on the real thing.
+export function faceMatrix(o, ea, eb, lenA, lenB) {
+  return new DOMMatrix([
+    ea[0] / (lenA * REF_SCALE),
+    ea[1] / (lenA * REF_SCALE),
+    eb[0] / (lenB * REF_SCALE),
+    eb[1] / (lenB * REF_SCALE),
+    o[0],
+    o[1],
+  ]);
+}
+
 // Fill a member's polygon with its material. `screenAngle` is the grain direction in screen
-// space (radians, clockwise-positive like the canvas); a member with no `type` (a plate) gets
-// the shading but no texture.
-export function paintMember(ctx, poly, X, Y, { type, hex, screenAngle = 0, scale, outline, dash }) {
+// space (radians, clockwise-positive like the canvas), or `matrix` (see faceMatrix) places the
+// texture outright; a member with no `type` (a plate) gets the shading but no texture.
+export function paintMember(ctx, poly, X, Y, { type, hex, screenAngle = 0, scale, outline, dash, matrix }) {
   const b = bounds(poly, X, Y);
   tracePoly(ctx, poly, X, Y);
   ctx.fillStyle = hex;
@@ -240,10 +272,11 @@ export function paintMember(ctx, poly, X, Y, { type, hex, screenAngle = 0, scale
   if (pattern) {
     const k = scale / REF_SCALE;
     pattern.setTransform(
-      new DOMMatrix()
-        .translateSelf((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2)
-        .rotateSelf((screenAngle * 180) / Math.PI)
-        .scaleSelf(k, k),
+      matrix ??
+        new DOMMatrix()
+          .translateSelf((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2)
+          .rotateSelf((screenAngle * 180) / Math.PI)
+          .scaleSelf(k, k),
     );
     ctx.fillStyle = pattern;
     ctx.fill();

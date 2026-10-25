@@ -1,21 +1,45 @@
 // STAIRSTACK — world constants and member catalogue.
 
-// Architectural model colours: bright, fully opaque, and read as materials —
-// ochre timber, terracotta, steel blue, sage and a plum finish.
+// Site materials in model colours: bright, fully opaque, each read as what it is — birch
+// plywood, pale glass, fired brick, galvanised pipe and grey structural steel.
 // Every member is measured in plan cells (CELL): width and depth are whole cells, heights whole
 // quarter-metres, so members butt up against each other and stack flush.
+//
+// `w` × `h` × `d` is the member's bounding box — what snaps to the grid, what the queue shows,
+// how high it stands. A member that is not a plain box lists its `parts`: boxes in the member's
+// own frame, each `{ x, y, z }` (its centre's offset from the member's centre) and
+// `{ hx, hy, hz }` (its half sizes), all inside the bounding box. Without `parts` a member is one
+// box filling it. `material` names an entry of MATERIALS.
 export const MEMBER_TYPES = [
-  { id: "slab", label: "Slab", w: 2.5, h: 0.25, d: 1.5, color: 0xe3a736, hex: "#e3a736" },
-  { id: "plank", label: "Plank", w: 3.5, h: 0.25, d: 1.0, color: 0xd2703a, hex: "#d2703a" },
-  { id: "block", label: "Block", w: 1.5, h: 1.0, d: 1.5, color: 0x4e8fbf, hex: "#4e8fbf" },
-  { id: "step", label: "Step", w: 2.0, h: 0.5, d: 1.0, color: 0x7fa85a, hex: "#7fa85a" },
-  { id: "beam", label: "Beam", w: 4.0, h: 0.5, d: 0.5, color: 0x8b6fa8, hex: "#8b6fa8" },
+  // a bundle of plywood sheets, strapped for lifting
+  { id: "plywood", label: "Plywood", w: 2.5, h: 0.25, d: 1.5, color: 0xd9ad6c, hex: "#d9ad6c", material: "standard" },
+  // a crate of glass panes, lowered flat
+  { id: "glass", label: "Glass", w: 3.5, h: 0.25, d: 1.0, color: 0x8fc3c9, hex: "#8fc3c9", material: "standard" },
+  // a pallet stacked with bricks
+  { id: "bricks", label: "Bricks", w: 1.5, h: 1.0, d: 1.5, color: 0xbf5b3f, hex: "#bf5b3f", material: "standard" },
+  // a bundle of steel pipes, strapped together
+  { id: "pipes", label: "Pipes", w: 2.0, h: 0.5, d: 1.0, color: 0x9aa7ae, hex: "#9aa7ae", material: "standard" },
+  // a steel H beam (for now a plain box; its flanges and web come with the shaped members)
+  { id: "hbeam", label: "H beam", w: 4.0, h: 0.5, d: 0.5, color: 0x5f6f7c, hex: "#5f6f7c", material: "standard" },
 ];
 
 export const MEMBER_BY_ID = Object.fromEntries(MEMBER_TYPES.map((t) => [t.id, t]));
 
+// What a member is made of, as the physics feels it: how heavy it is for its size, how it grips
+// what it rests on (a member that tips pivots over an edge rather than sliding off it, so it is
+// grippy), and how little it bounces.
+export const MATERIALS = {
+  standard: { density: 1.4, friction: 1.2, restitution: 0.02 },
+};
+
+// The boxes a member type is made of (see MEMBER_TYPES): its own `parts`, or one box filling its
+// bounding box.
+export function partsOf(type) {
+  return type.parts ?? [{ x: 0, y: 0, z: 0, hx: type.w / 2, hy: type.h / 2, hz: type.d / 2 }];
+}
+
 // The drop order: NOW / NEXT read from this, indexed by how many members have been dropped.
-export const SEQUENCE = ["slab", "plank", "block", "step", "beam", "slab", "block", "plank", "step", "slab"];
+export const SEQUENCE = ["plywood", "glass", "bricks", "pipes", "hbeam", "plywood", "bricks", "glass", "pipes", "plywood"];
 // How many members after the one in play the queue between the two views shows.
 export const QUEUE_AHEAD = 3;
 

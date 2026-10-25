@@ -14,7 +14,7 @@ import {
   STONE,
   VIEW_BOTTOM,
 } from "./constants";
-import { memberVertices } from "./elevation";
+import { memberParts, memberVertices } from "./elevation";
 import { viewRise } from "./world";
 
 // Every run starts the same way: the clock at zero, and the lava at the foot of the tower.
@@ -79,8 +79,8 @@ export function petrify(g) {
     m.body.setLinvel({ x: 0, y: 0, z: 0 }, false);
     m.body.setAngvel({ x: 0, y: 0, z: 0 }, false);
     m.body.setBodyType(RAPIER.RigidBodyType.Fixed, true);
-    // `sil` / `plan` cache its projections the first time each is asked for
-    m.stone = { verts, top, sil: {}, plan: null };
+    // `sil` / `plan` cache its projections (one polygon per part) the first time each is asked for
+    m.stone = { verts, parts: memberParts(m), top, sil: {}, plan: null };
     m.hex = STONE.hex;
     m.color = STONE.color;
   }

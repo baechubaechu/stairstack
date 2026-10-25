@@ -4,28 +4,28 @@ exports[`replays a scripted run identically 1`] = `
 {
   "bodies": [
     [
-      "slab",
+      "plywood",
       -3.25,
       0.124,
       -2.25,
       null,
     ],
     [
-      "slab",
+      "plywood",
       -0.75,
       0.124,
       -0.75,
       null,
     ],
     [
-      "block",
+      "bricks",
       1.75,
       0.499,
       0.25,
       null,
     ],
     [
-      "plank",
+      "glass",
       -0.25,
       0.738,
       1,
@@ -39,14 +39,14 @@ exports[`replays a scripted run identically 1`] = `
       false,
     ],
     [
-      "slab",
+      "plywood",
       1.75,
       0.726,
       -0.788,
       null,
     ],
     [
-      "plank",
+      "glass",
       1.75,
       2.014,
       -1,

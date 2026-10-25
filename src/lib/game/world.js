@@ -5,11 +5,13 @@ import {
   DROP_Y,
   FACES,
   GROUND_HALF,
+  MATERIALS,
   MEMBER_BY_ID,
   MEMBER_GRAVITY,
   PHYS_STEP,
   SEQUENCE,
   VIEW_FOLLOW,
+  partsOf,
 } from "./constants";
 import { faceU, memberVertices } from "./elevation";
 import { holdSquare } from "./tipping";
@@ -191,22 +193,25 @@ export function addMember(g, type, x, y, z, euler) {
       // looks ahead along the path instead, enough that a fast drop can't pass through a slab.
       .setSoftCcdPrediction(SOFT_CCD),
   );
-  // grippy: a member that tips is free to move only the way it tips, and even that way it
-  // pivots over the edge rather than sliding off it (see tipping.js).
-  // The collider is a hair narrower than the member (SIDE_GAP each side, never its height):
+  // One collider per part, all of the member's material (see MATERIALS — grippy, so a member
+  // that tips pivots over the edge rather than sliding off it; see tipping.js).
+  // Each collider is a hair narrower than its part (SIDE_GAP each side, never its height):
   // members sit flush on the grid, and two locked side by side that touched would press into
   // each other sideways with nowhere to go — friction would turn that push into a vertical
   // kick and throw one of them into the sky. Everything drawn and climbed keeps the full size.
-  const collider = world.createCollider(
-    RAPIER.ColliderDesc.cuboid(type.w / 2 - SIDE_GAP, type.h / 2, type.d / 2 - SIDE_GAP)
-      .setFriction(1.2)
+  const mat = MATERIALS[type.material];
+  const parts = partsOf(type);
+  const colliders = parts.map((p) => {
+    const desc = RAPIER.ColliderDesc.cuboid(p.hx - SIDE_GAP, p.hy, p.hz - SIDE_GAP)
+      .setFriction(mat.friction)
       .setFrictionCombineRule(RAPIER.CoefficientCombineRule.Max)
-      .setRestitution(0.02)
-      .setDensity(1.4),
-    body,
-  );
+      .setRestitution(mat.restitution)
+      .setDensity(mat.density);
+    if (p.x || p.y || p.z) desc.setTranslation(p.x, p.y, p.z);
+    return world.createCollider(desc, body);
+  });
   holdSquare(body);
-  const m = { type, body, collider, hx: type.w / 2, hy: type.h / 2, hz: type.d / 2, color: type.color, hex: type.hex };
+  const m = { type, body, parts, colliders, hx: type.w / 2, hy: type.h / 2, hz: type.d / 2, color: type.color, hex: type.hex };
   m.tip = { landed: false, air: 0, axis: null };
   m.bottom = extent(g, m).bottom;
   g.members.push(m);

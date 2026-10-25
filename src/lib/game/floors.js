@@ -8,7 +8,7 @@
 // The climber collides with it all the same (their collision is the projected silhouettes, not
 // Rapier). The moment their feet find its top it is inked in: it gets a collider and becomes
 // solid ground members can land on — and the next storey appears FLOOR_STOREY higher.
-import { FACES, FLOOR, FLOOR_FIRST, FLOOR_GAP, FLOOR_STOREY, GROUND_HALF } from "./constants";
+import { FACES, FLOOR, FLOOR_FIRST, FLOOR_GAP, FLOOR_STOREY, GROUND_HALF, partsOf } from "./constants";
 import { extent } from "./world";
 
 // The plan direction (x, z) of each compass edge the gap can run along.
@@ -35,7 +35,7 @@ function layFloor(g, bottom, edge) {
   const hy = FLOOR.h / 2;
   const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(cx, bottom + hy, cz));
   const type = { ...FLOOR, w: hx * 2, d: hz * 2 };
-  const m = { type, body, hx, hy, hz, color: FLOOR.color, hex: FLOOR.hex };
+  const m = { type, body, parts: partsOf(type), hx, hy, hz, color: FLOOR.color, hex: FLOOR.hex };
   m.floor = { edge, active: false, collider: null };
   m.bottom = extent(g, m).bottom;
   g.members.push(m);
