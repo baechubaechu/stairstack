@@ -6,6 +6,9 @@ import { overhang, tipAxis } from "./tipping";
 import { addMember } from "./world";
 
 const DT = 1 / 60;
+// A long thin member that is not glass: these tests are about how members tip, not about a heavy
+// one breaking what it lands on (see loads.test.js).
+const PLANK = MEMBER_BY_ID.board;
 let engine;
 let g;
 
@@ -82,7 +85,7 @@ describe("members on the grid", () => {
     addMember(g, MEMBER_BY_ID.bricks, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
     settleFor(1);
     // the plank's centre sits a metre past the block's +x edge, and half a cell past its +z edge
-    const plank = addMember(g, MEMBER_BY_ID.glass, 0.5, 1.6, 1.0, { x: 0, y: 0, z: 0 });
+    const plank = addMember(g, PLANK, 0.5, 1.6, 1.0, { x: 0, y: 0, z: 0 });
     settleFor(2);
     expect(plank.tip.axis).toBe("x");
     const r = tilt(plank);
@@ -95,7 +98,7 @@ describe("members on the grid", () => {
   it("tips a block landing on a tilted plank to lie along the slope", () => {
     addMember(g, MEMBER_BY_ID.bricks, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
     settleFor(1);
-    const plank = addMember(g, MEMBER_BY_ID.glass, 0.5, 1.6, 0.0, { x: 0, y: 0, z: 0 });
+    const plank = addMember(g, PLANK, 0.5, 1.6, 0.0, { x: 0, y: 0, z: 0 });
     settleFor(2);
     const slope = tilt(plank).aboutZ;
     const block = addMember(g, MEMBER_BY_ID.bricks, 0.75, 3.5, 0.0, { x: 0, y: 0, z: 0 });
@@ -108,7 +111,7 @@ describe("members on the grid", () => {
   it("never slides a member off down a slope", () => {
     addMember(g, MEMBER_BY_ID.bricks, -1.25, 0.6, 0.25, { x: 0, y: 0, z: 0 });
     settleFor(1);
-    addMember(g, MEMBER_BY_ID.glass, 0.5, 1.6, 0.0, { x: 0, y: 0, z: 0 });
+    addMember(g, PLANK, 0.5, 1.6, 0.0, { x: 0, y: 0, z: 0 });
     settleFor(2);
     // dropped from high up, right at the low end of the slope
     const block = addMember(g, MEMBER_BY_ID.bricks, 1.5, 5, 0.0, { x: 0, y: 0, z: 0 });
@@ -157,7 +160,7 @@ describe("members on the grid", () => {
   });
 
   it("never lets a member dropped from high up fall through a thin one", () => {
-    const plank = addMember(g, MEMBER_BY_ID.glass, 0.25, 0.13, 0, { x: 0, y: 0, z: 0 });
+    const plank = addMember(g, PLANK, 0.25, 0.13, 0, { x: 0, y: 0, z: 0 });
     settleFor(0.5);
     const slab = addMember(g, MEMBER_BY_ID.plywood, 0.25, 30, 0, { x: 0, y: 0, z: 0 }); // ~23 m/s by the time it arrives
     settleFor(3);

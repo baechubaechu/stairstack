@@ -24,6 +24,8 @@ export function resetRun(state) {
   state.manualDrops = 0;
   state.autoDropHeld = false;
   state.turns = 0;
+  state.landings = [];
+  state.effects = [];
   state.best = 0;
   state.timeScore = 0;
   state.heightScore = 0;

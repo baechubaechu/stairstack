@@ -25,7 +25,7 @@ exports[`replays a scripted run identically 1`] = `
       null,
     ],
     [
-      "glass",
+      "board",
       -0.25,
       0.738,
       1,

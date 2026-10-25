@@ -12,17 +12,17 @@
 // box filling it. `material` names an entry of MATERIALS.
 export const MEMBER_TYPES = [
   // a bundle of plywood sheets, strapped for lifting
-  { id: "plywood", label: "Plywood", w: 2.5, h: 0.25, d: 1.5, color: 0xd9ad6c, hex: "#d9ad6c", material: "standard" },
+  { id: "plywood", label: "Plywood", w: 2.5, h: 0.25, d: 1.5, color: 0xd9ad6c, hex: "#d9ad6c", material: "timber" },
   // a crate of glass panes, lowered flat
-  { id: "glass", label: "Glass", w: 3.5, h: 0.25, d: 1.0, color: 0x8fc3c9, hex: "#8fc3c9", material: "standard" },
+  { id: "glass", label: "Glass", w: 3.5, h: 0.25, d: 1.0, color: 0x8fc3c9, hex: "#8fc3c9", material: "glass" },
   // a pallet stacked with bricks
-  { id: "bricks", label: "Bricks", w: 1.5, h: 1.0, d: 1.5, color: 0xbf5b3f, hex: "#bf5b3f", material: "standard" },
+  { id: "bricks", label: "Bricks", w: 1.5, h: 1.0, d: 1.5, color: 0xbf5b3f, hex: "#bf5b3f", material: "masonry" },
   // a bundle of steel pipes, strapped together
-  { id: "pipes", label: "Pipes", w: 2.0, h: 0.5, d: 1.0, color: 0x9aa7ae, hex: "#9aa7ae", material: "standard" },
+  { id: "pipes", label: "Pipes", w: 2.0, h: 0.5, d: 1.0, color: 0x9aa7ae, hex: "#9aa7ae", material: "pipes" },
   // a steel H beam lying on its flange: top and bottom flanges and the web between them, so seen
   // end on it is an H
   {
-    id: "hbeam", label: "H beam", w: 4.0, h: 0.5, d: 0.5, color: 0x5f6f7c, hex: "#5f6f7c", material: "standard",
+    id: "hbeam", label: "H beam", w: 4.0, h: 0.5, d: 0.5, color: 0x5f6f7c, hex: "#5f6f7c", material: "steel",
     parts: [
       { x: 0, y: 0.1875, z: 0, hx: 2.0, hy: 0.0625, hz: 0.25 },
       { x: 0, y: 0, z: 0, hx: 2.0, hy: 0.125, hz: 0.0625 },
@@ -30,10 +30,10 @@ export const MEMBER_TYPES = [
     ],
   },
   // a pallet of cement bags
-  { id: "cement", label: "Cement bags", w: 1.5, h: 0.75, d: 1.5, color: 0xc9bfa8, hex: "#c9bfa8", material: "standard" },
+  { id: "cement", label: "Cement bags", w: 1.5, h: 0.75, d: 1.5, color: 0xc9bfa8, hex: "#c9bfa8", material: "cement" },
   // a precast concrete stair: a full-length lower step and an upper step on one half
   {
-    id: "stairs", label: "Stairs", w: 2.0, h: 1.0, d: 1.0, color: 0xb3aea4, hex: "#b3aea4", material: "standard",
+    id: "stairs", label: "Stairs", w: 2.0, h: 1.0, d: 1.0, color: 0xb3aea4, hex: "#b3aea4", material: "concrete",
     parts: [
       { x: 0, y: -0.25, z: 0, hx: 1.0, hy: 0.25, hz: 0.5 },
       { x: 0.5, y: 0.25, z: 0, hx: 0.5, hy: 0.25, hz: 0.5 },
@@ -41,24 +41,54 @@ export const MEMBER_TYPES = [
   },
   // an L of formwork panels: a base and a wall standing at one end — its weight leans that way
   {
-    id: "lform", label: "L formwork", w: 1.5, h: 1.0, d: 1.0, color: 0xb4623a, hex: "#b4623a", material: "standard",
+    id: "lform", label: "L formwork", w: 1.5, h: 1.0, d: 1.0, color: 0xb4623a, hex: "#b4623a", material: "timber",
     parts: [
       { x: 0, y: -0.375, z: 0, hx: 0.75, hy: 0.125, hz: 0.5 },
       { x: -0.625, y: 0.125, z: 0, hx: 0.125, hy: 0.375, hz: 0.5 },
     ],
   },
   // a ribbed steel deck plate: long, wide and thin
-  { id: "deck", label: "Deck plate", w: 4.0, h: 0.25, d: 1.5, color: 0x7c8a97, hex: "#7c8a97", material: "standard" },
+  { id: "deck", label: "Deck plate", w: 4.0, h: 0.25, d: 1.5, color: 0x7c8a97, hex: "#7c8a97", material: "steel" },
+  // a scaffold board: the ramp the run opens with (never dropped from the crane)
+  { id: "board", label: "Scaffold board", w: 3.5, h: 0.25, d: 1.0, color: 0xc8954f, hex: "#c8954f", material: "timber" },
+  // a pipe bundle a heavy member has burst open: the same pipes laid out flat side by side (never
+  // dropped from the crane, only made by a landing — see loads.js)
+  { id: "pipesFlat", label: "Spread pipes", w: 2.0, h: 0.25, d: 1.5, color: 0x9aa7ae, hex: "#9aa7ae", material: "pipesSpread" },
 ];
 
 export const MEMBER_BY_ID = Object.fromEntries(MEMBER_TYPES.map((t) => [t.id, t]));
 
-// What a member is made of, as the physics feels it: how heavy it is for its size, how it grips
-// what it rests on (a member that tips pivots over an edge rather than sliding off it, so it is
-// grippy), and how little it bounces.
+// What a member is made of. The solver sees every material the same way — heavy for its size,
+// grippy (a member that tips pivots over an edge rather than sliding off it) and barely bouncing —
+// since members locked square against one another stay steady only that way. What differs is
+// what the game makes of it:
+// - `weight` 1 light · 2 medium · 3 heavy: how fast it sinks and falls (WEIGHT_FALL), and what it
+//   does to what it lands on (HEAVY)
+// - `fragile`: a heavy member landing on it breaks it — it is gone
+// - `spreadsTo`: a heavy member landing on it bursts it open into that member type, lower and wider
+// - `slippery`: a climber standing on it hardly slows down
+// - `steady`: it never tips — it settles level wherever it lands
+const SOLID = { density: 1.4, friction: 1.2, restitution: 0.02 };
 export const MATERIALS = {
-  standard: { density: 1.4, friction: 1.2, restitution: 0.02 },
+  standard: { ...SOLID, weight: 2 },
+  timber: { ...SOLID, weight: 1 },
+  glass: { ...SOLID, weight: 1, fragile: true, slippery: true },
+  masonry: { ...SOLID, weight: 3 },
+  pipes: { ...SOLID, weight: 2, spreadsTo: "pipesFlat" },
+  pipesSpread: { ...SOLID, weight: 2 },
+  steel: { ...SOLID, weight: 3 },
+  cement: { ...SOLID, weight: 2, steady: true },
+  concrete: { ...SOLID, weight: 3 },
 };
+// The weight from which a landing breaks what is fragile and bursts what is bundled.
+export const HEAVY = 3;
+// How much faster than the rest a heavy member sinks from the crane and falls once dropped.
+export const WEIGHT_FALL = { 1: 1, 2: 1, 3: 1.3 };
+// A climber on something slippery speeds up and slows down this much slower than on firm ground.
+export const SLIP_ACCEL = 0.45;
+export const SLIP_DECEL = 0.15;
+
+export const materialOf = (type) => MATERIALS[type.material] ?? MATERIALS.standard;
 
 // The boxes a member type is made of (see MEMBER_TYPES): its own `parts`, or one box filling its
 // bounding box.

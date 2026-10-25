@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { breakPane, createShatter, drawShatter, stepShatter } from "@/components/game/art/shatter";
 import {
   createClimberAnim,
   createDust,
@@ -258,6 +259,15 @@ export default function ElevationView({ engineRef, snapRef }) {
       stepEmbers(embers, dt, lv, view);
       stepDust(dust, dt);
       if (!turn) memberImpacts(eng, lastVy, dust);
+      // glass shattering and pipe bundles bursting open, each burst of debris thrown once
+      const seen = (fx.current.seenEffects ??= new Set());
+      for (const ef of eng.effects) {
+        if (seen.has(ef.id)) continue;
+        seen.add(ef.id);
+        const u = faceU(FACES[eng.face], [ef.x, ef.y, ef.z]);
+        if (ef.kind === "shatter") breakPane((fx.current.glass ??= createShatter()), u, ef.y, ef.w, ef.hex);
+        else puff(dust, u, ef.y, ef.w * 2, 16);
+      }
       const c = eng.character;
       if (stepClimberAnim(anim, c, dt)) puff(dust, c.x, c.y - c.hh, 0.3, 7);
       stepCraneFx(crane, dt, strainOf(eng), crane.hook);
@@ -394,6 +404,10 @@ export default function ElevationView({ engineRef, snapRef }) {
 
     if (proj) {
       drawDust(ctx, dust, X, Y, scale);
+      if (fx.current.glass) {
+        stepShatter(fx.current.glass, dt);
+        drawShatter(ctx, fx.current.glass, (u, y) => [X(u), Y(y)], scale);
+      }
 
       // character height indicator
       const c = eng.character;

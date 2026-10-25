@@ -15,7 +15,7 @@
 // Every tilt is about x or z, so every slope in the tower runs along a grid axis — and a member
 // landing on a slope hangs off its top edge toward the downhill side, so it tips to lie along the
 // slope with the same rule.
-import { GROUND_HALF, comOf } from "./constants";
+import { GROUND_HALF, comOf, materialOf } from "./constants";
 import { convexHull } from "./hull";
 
 // Steps with nothing underneath before a landed member counts as airborne again.
@@ -155,6 +155,10 @@ export function settle(g) {
     tip.air = 0;
     if (tip.landed) continue;
     tip.landed = true;
+    // what it does to what it has landed on is judged after the step (see loads.js)
+    g.state.landings?.push(m);
+    // some members (cement bags) settle level wherever they land
+    if (materialOf(m.type).steady) continue;
     const t = m.body.translation();
     // what has to be over the support is the member's weight: a plain box's middle, or for a
     // shaped one (a stair, an L) wherever its parts put it
@@ -218,6 +222,7 @@ function lockTravel(m) {
 // Returns { axis: "x" | "z", sign: ±1 }, the way its overhanging side goes down.
 export function forecastTip(g, p) {
   const { RAPIER, world } = g;
+  if (materialOf(p.type).steady) return null;
   const quarter = Math.round(p.yaw / (Math.PI / 2));
   const fx = quarter % 2 ? p.type.d : p.type.w;
   const fz = quarter % 2 ? p.type.w : p.type.d;

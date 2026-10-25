@@ -5,12 +5,13 @@ import {
   DROP_Y,
   FACES,
   GROUND_HALF,
-  MATERIALS,
   MEMBER_BY_ID,
   MEMBER_GRAVITY,
   PHYS_STEP,
   SEQUENCE,
   VIEW_FOLLOW,
+  WEIGHT_FALL,
+  materialOf,
   partsOf,
 } from "./constants";
 import { faceU, memberVertices } from "./elevation";
@@ -199,7 +200,9 @@ export function addMember(g, type, x, y, z, euler) {
   // members sit flush on the grid, and two locked side by side that touched would press into
   // each other sideways with nowhere to go — friction would turn that push into a vertical
   // kick and throw one of them into the sky. Everything drawn and climbed keeps the full size.
-  const mat = MATERIALS[type.material];
+  const mat = materialOf(type);
+  // heavy members fall faster, light ones a little slower
+  body.setGravityScale(WEIGHT_FALL[mat.weight], false);
   const parts = partsOf(type);
   const colliders = parts.map((p) => {
     const desc = RAPIER.ColliderDesc.cuboid(p.hx - SIDE_GAP, p.hy, p.hz - SIDE_GAP)

@@ -77,6 +77,9 @@ randomness (embers, dust) is fine there; the engine itself must stay determinist
   (boxes in the member's frame) and a `material` (`MATERIALS`: density, friction, restitution). Every
   part gets its own collider and its own silhouette polygon (`memberParts`), so shaped members keep
   their notches; `memberVertices` is all the corners together, for extents. Plans: `docs/materials-plan.md`.
+  Materials also carry the game's rules: `weight` (heavy ones fall faster), `fragile` (glass breaks
+  under a heavy landing), `spreadsTo` (a pipe bundle bursts open), `slippery`, `steady` (never tips).
+  `loads.js` applies landings after each physics step; `state.effects` lists shatters for the views.
 - `window.__perf` (dev only) holds the smoothed step / draw cost of a frame in ms.
 
 ## Supabase (run logs + leaderboard)

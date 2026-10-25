@@ -1,6 +1,6 @@
 // What both views read: the same rigid bodies projected onto an elevation face (silhouettes)
 // and onto the plan (footprints), plus the climber-expanded silhouettes the climb collides with.
-import { FACES, GROUND_HALF, partsOf } from "./constants";
+import { FACES, GROUND_HALF, materialOf, partsOf } from "./constants";
 import { faceNear, faceU, memberParts, quatToMat3, shapeParts } from "./elevation";
 import { convexHull, expandForBox, penetration } from "./hull";
 import { placement, quatFromEuler } from "./world";
@@ -57,12 +57,14 @@ export function project(g, faceId) {
     const sils = partSils(memberParts(m), f);
     if (!sils.length) continue;
     const angle = grainAngle(m, f);
+    const slippery = !!materialOf(m.type).slippery;
     for (const { poly, near } of sils) {
       out.push({
         hex: m.hex,
         color: m.color,
         poly,
         near,
+        slippery,
         type: m.type.id,
         angle,
         // a floor slab is drawn pencilled until the climber has stood on it
@@ -131,6 +133,8 @@ export function refresh(g) {
   }
   // basalt lies wholly under the lava, where the climber can never stand, so it is left out
   // of what the climb collides with
-  const solid = views.silhouettes.filter((s) => !s.stone).map((s) => s.poly);
-  views.expanded = [GROUND_POLY, ...solid].map((p) => expandForBox(p, character.hw, character.hh));
+  const solid = views.silhouettes.filter((s) => !s.stone);
+  views.expanded = [GROUND_POLY, ...solid.map((s) => s.poly)].map((p) => expandForBox(p, character.hw, character.hh));
+  // which of those the climber would slide about on (glass), index for index
+  views.slippery = [false, ...solid.map((s) => !!s.slippery)];
 }

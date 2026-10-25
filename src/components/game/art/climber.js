@@ -102,7 +102,7 @@ export function createDust() {
   return [];
 }
 
-export function puff(dust, u, y, spread, count) {
+export function puff(dust, u, y, spread, count, rgb = null) {
   for (let i = 0; i < count; i++) {
     const side = Math.random() < 0.5 ? -1 : 1;
     dust.push({
@@ -113,6 +113,7 @@ export function puff(dust, u, y, spread, count) {
       life: 0,
       max: 0.35 + Math.random() * 0.35,
       size: 0.05 + Math.random() * 0.07,
+      rgb,
     });
   }
 }
@@ -131,7 +132,7 @@ export function stepDust(dust, dt) {
 export function drawDust(ctx, dust, X, Y, m) {
   for (const d of dust) {
     const k = 1 - d.life / d.max;
-    ctx.fillStyle = `rgba(214,200,178,${(0.7 * k).toFixed(3)})`;
+    ctx.fillStyle = `rgba(${d.rgb ?? "214,200,178"},${(0.7 * k).toFixed(3)})`;
     ctx.beginPath();
     ctx.arc(X(d.u), Y(d.y), d.size * m * (1.4 - k * 0.6), 0, Math.PI * 2);
     ctx.fill();

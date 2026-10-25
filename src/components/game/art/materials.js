@@ -237,7 +237,7 @@ function concrete(c) {
   c.stroke();
 }
 
-const PAINTERS = { plywood, glass, bricks, pipes, hbeam: steel, cement, stairs: concrete, lform: formwork, deck, basalt, floor: concrete };
+const PAINTERS = { plywood, board: plywood, pipesFlat: pipes, glass, bricks, pipes, hbeam: steel, cement, stairs: concrete, lform: formwork, deck, basalt, floor: concrete };
 
 // One texture tile per type, painted once and shared by every canvas.
 const tiles = new Map();

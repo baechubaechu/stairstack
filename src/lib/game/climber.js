@@ -20,6 +20,8 @@ import {
   MOVE_SPEED,
   RUN_ACCEL,
   RUN_DECEL,
+  SLIP_ACCEL,
+  SLIP_DECEL,
   SPAWN,
   STEP_PROBE,
   STEP_UP,
@@ -113,11 +115,15 @@ function resolveContact(g) {
   // (zero separation) must never mask a real contact from another member.
   for (let iter = 0; iter < 4; iter++) {
     let best = null;
-    for (const poly of g.views.expanded) {
+    let bestAt = -1;
+    g.views.expanded.forEach((poly, i) => {
       const pen = penetration(poly, character.x, character.y);
-      if (!pen || pen.dist < SEPARATION) continue;
-      if (!best || pen.dist < best.dist) best = pen;
-    }
+      if (!pen || pen.dist < SEPARATION) return;
+      if (!best || pen.dist < best.dist) {
+        best = pen;
+        bestAt = i;
+      }
+    });
     if (!best) break;
     character.x += best.nx * best.dist;
     character.y += best.ny * best.dist;
@@ -126,7 +132,11 @@ function resolveContact(g) {
       character.vx -= vn * best.nx;
       character.vy -= vn * best.ny;
     }
-    if (best.ny > 0.5) character.grounded = true;
+    if (best.ny > 0.5) {
+      character.grounded = true;
+      // standing on glass: the next steps barely grip (see charStep)
+      character.slippery = !!g.views.slippery?.[bestAt];
+    }
   }
 }
 
@@ -191,7 +201,16 @@ export function charStep(g, h) {
 
   // run toward the held direction — quicker on the ground than in the air
   const onGround = c.airTime === 0;
-  const rate = dir !== 0 ? (onGround ? RUN_ACCEL : AIR_ACCEL) : onGround ? RUN_DECEL : AIR_DECEL;
+  // on something slippery (glass) the climber is slow to get going and slower to stop
+  const grip = onGround && c.slippery;
+  const rate =
+    dir !== 0
+      ? onGround
+        ? RUN_ACCEL * (grip ? SLIP_ACCEL : 1)
+        : AIR_ACCEL
+      : onGround
+        ? RUN_DECEL * (grip ? SLIP_DECEL : 1)
+        : AIR_DECEL;
   c.vx = approach(c.vx, dir * MOVE_SPEED, rate * h);
 
   // gravity eases at the top of a held jump and bites harder on the way down
@@ -200,6 +219,7 @@ export function charStep(g, h) {
   else if (c.vy < 0) gravity *= FALL_GRAVITY;
   c.vy = Math.max(-MAX_FALL, c.vy + gravity * h);
   c.grounded = false;
+  c.slippery = false;
 
   const dx = c.vx * h;
   const dy = c.vy * h;

@@ -8,7 +8,7 @@
 // whoever skipped the steps), the tip arrow, a pencilled floor slab. Everything is remembered
 // per browser; the pause menu can start the guide over.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { EDGE_LINE } from "@/lib/game/constants";
+import { EDGE_LINE, HEAVY, MEMBER_BY_ID, materialOf } from "@/lib/game/constants";
 import { track } from "@/lib/telemetry";
 
 const DONE_KEY = "stairstack.guide";
@@ -24,7 +24,18 @@ export const STEPS = [
 const HELD = new Set(["drop", "climb", "turn"]);
 // How high the climber's feet must stand to count as having climbed onto a member, in metres.
 const CLIMBED = 0.2;
-const TIP_TARGET = { edge: "elevation", tip: "plan", slab: "elevation" };
+const TIP_TARGET = { edge: "elevation", tip: "plan", slab: "elevation", matGlass: "plan", matPipes: "plan", matCement: "plan", matHeavy: "plan" };
+// The material tips: which one the member on the hook calls for, the first time one like it comes.
+function materialTip(typeId) {
+  const type = MEMBER_BY_ID[typeId];
+  if (!type) return null;
+  const mat = materialOf(type);
+  if (mat.fragile) return "matGlass";
+  if (mat.spreadsTo) return "matPipes";
+  if (mat.steady) return "matCement";
+  if (mat.weight >= HEAVY) return "matHeavy";
+  return null;
+}
 // How long the lava warning and each tip stay up, in seconds of play.
 const SHOW_FOR = 6;
 // How near the end of the view the climber must come for the edge tip, in metres.
@@ -119,13 +130,16 @@ export function useGuide(engineRef, stats) {
       eng.members.some((m) => m.floor && !m.floor.active && m.body.translation().y - m.hy - feet < SLAB_NEAR)
     ) {
       next = "slab";
+    } else {
+      const mat = materialTip(stats.nowId);
+      if (mat && !shown.has(mat)) next = mat;
     }
     if (!next) return;
     shown.add(next);
     write(TIPS_KEY, [...shown].join(","));
     since.current = stats.time;
     setTip(next);
-  }, [live, step, tip, stats.time, engineRef]);
+  }, [live, step, tip, stats.time, stats.nowId, engineRef]);
 
   const skip = useCallback(() => {
     for (const id of Object.keys(TIP_TARGET)) tipsShown.current.add(id);

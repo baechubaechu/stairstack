@@ -1,6 +1,6 @@
 // The member in play: queued at the top of the play area, sinking on its own, and turned into
 // a rigid body when it lands or the player clicks.
-import { AUTO_FALL_SECONDS } from "./constants";
+import { AUTO_FALL_SECONDS, WEIGHT_FALL, materialOf } from "./constants";
 
 // The shortest time a member hangs in play before it settles on its own, in seconds.
 const MIN_HANG = 0.8;
@@ -58,13 +58,15 @@ function clearOf(g, type, x, y, z, yaw) {
 
 // The unattended fall: the member sinks at a steady slow rate and settles on its own,
 // taking AUTO_FALL_SECONDS from where it was released down to whatever it lands on — and less
-// time the further the run has gone, so the drop presses harder as the lava closes in.
+// time the further the run has gone, so the drop presses harder as the lava closes in. A heavy
+// member sinks faster than a light one (WEIGHT_FALL).
 export function descend(g, dt) {
   if (g.state.autoDropHeld) return;
   const a = g.state.active;
   if (!a) return;
   const p = placement(g);
-  const rate = Math.max(0.6, (a.from - p.landing) / AUTO_FALL_SECONDS) * sinkFactor(g.state.clock);
+  const rate =
+    Math.max(0.6, (a.from - p.landing) / AUTO_FALL_SECONDS) * sinkFactor(g.state.clock) * WEIGHT_FALL[materialOf(a.type).weight];
   a.y = Math.max(p.landing, a.y - rate * dt);
   // Never settles on its own sooner than MIN_HANG after it appeared: where the stack already
   // reaches the release height there is nothing to sink through, and without this every member

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useFrame } from "@/components/game/frame";
 import { faceMatrix, paintMember } from "@/components/game/art/materials";
 import { paintOrder } from "@/components/game/paintOrder";
+import { breakPane, createShatter, drawShatter, stepShatter } from "@/components/game/art/shatter";
 import { drawFoundation, drawSiteGround, drawSiteObjects } from "@/components/game/art/site";
 import { createCamera, easeYaw, yawFor } from "@/components/game/perspective";
 import useCanvasSize from "@/components/game/useCanvasSize";
@@ -229,6 +230,8 @@ export default function PlanView({ engineRef, onDrop }) {
   const camRef = useRef(null);
   const yawRef = useRef(null);
   const riseRef = useRef(0);
+  // glass shattering, seen from above: the shards skid out across the plane they broke on
+  const glassRef = useRef({ fx: createShatter(), seen: new Set() });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -448,6 +451,22 @@ export default function PlanView({ engineRef, onDrop }) {
     const fh = cam.project(nearEnd[0], feet + CHARACTER.h, nearEnd[1]);
     ctx.fillStyle = FIGURE;
     ctx.fillRect(fb.x - 3, fh.y, 6, fb.y - fh.y);
+
+    // panes that have just broken, and the shards flying from them
+    const glass = glassRef.current;
+    for (const ef of eng.effects) {
+      if (ef.kind !== "shatter" || glass.seen.has(ef.id)) continue;
+      glass.seen.add(ef.id);
+      breakPane(glass.fx, ef.x, ef.z, ef.w, ef.hex, { up: false, h: ef.y });
+    }
+    stepShatter(glass.fx, Math.min(dt, 0.05));
+    if (glass.fx.shards.length || glass.fx.flashes.length) {
+      const at = glass.fx.shards[0] ?? glass.fx.flashes[0];
+      drawShatter(ctx, glass.fx, (x, z, y) => {
+        const p = cam.project(x, y, z);
+        return [p.x, p.y];
+      }, cam.project(at.u, at.h, at.y).ppm);
+    }
 
     // the member in play: its box where it hangs now, its footprint where it will land with a
     // line down to it, and which way it will tip there

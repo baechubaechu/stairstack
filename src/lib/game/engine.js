@@ -8,6 +8,7 @@
 import { BLOCKED_SECONDS, CHAR_STEP, COMPASS, FACES, LAVA_START, MEMBER_BY_ID, PHYS_STEP, QUEUE_AHEAD, SEQUENCE } from "./constants";
 import { aimOverHead, charStep, createCharacter, headStrike, respawn } from "./climber";
 import { forecastTip, settle } from "./tipping";
+import { applyLoads } from "./loads";
 import { descend, release, spawnActive } from "./drop";
 import { seedFloor, stepFloors } from "./floors";
 import { advanceRun, buryDeep, petrify, reachHeight, resetRun } from "./survival";
@@ -50,6 +51,8 @@ function createState() {
     autoDropHeld: false,
     floors: 0, // floor slabs stood on this run
     turns: 0, // face turns committed this run (refused ones don't count)
+    landings: [], // members that landed this step, for loads.js to judge
+    effects: [], // glass shattered and bundles burst lately, for the views to draw
   };
 }
 
@@ -71,7 +74,7 @@ export function createEngine(RAPIER, input) {
     addMember(g, MEMBER_BY_ID.plywood, -3.25, 0.13, -2.25, { x: 0, y: 0, z: 0 });
     addMember(g, MEMBER_BY_ID.plywood, -0.75, 0.13, -0.75, { x: 0, y: 0, z: 0 });
     addMember(g, MEMBER_BY_ID.bricks, 1.75, 0.5, 0.25, { x: 0, y: 0, z: 0 });
-    addMember(g, MEMBER_BY_ID.glass, -0.25, 0.62, 1.0, { x: 0, y: 0, z: 0.3 });
+    addMember(g, MEMBER_BY_ID.board, -0.25, 0.62, 1.0, { x: 0, y: 0, z: 0.3 });
     seedFloor(g);
     refresh(g);
   }
@@ -173,6 +176,7 @@ export function createEngine(RAPIER, input) {
       g.world.step();
       state.physSteps += 1;
       settle(g); // members that just landed decide whether, and which way, they tip
+      applyLoads(g); // and what their weight does to what they landed on
       state.physAcc -= PHYS_STEP;
       n += 1;
       // Judged on the frame it happens, so the world can freeze with the fatal
@@ -274,6 +278,10 @@ export function createEngine(RAPIER, input) {
       return state.face;
     },
     // The lava's surface, in metres above the floor — what both the elevation and the HUD read.
+    // Shatters and bursts of the last moments ({ id, kind, x, y, z, w, hex }), for drawing.
+    get effects() {
+      return state.effects;
+    },
     get lava() {
       return state.lava;
     },
