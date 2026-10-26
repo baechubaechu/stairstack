@@ -203,6 +203,7 @@ const ko = {
   "guide.climb": "드론 카메라 화면을 보며 A / D로 걷고 W·Space로 점프해서 자재 위로 올라가 보세요.",
   "guide.turn": "이제 화면 끝까지 계속 걸어가 보세요. 탑 모퉁이를 돌아 옆 면으로 넘어가요 — 한쪽이 막히면 다른 면에서 길을 찾을 수 있어요.",
   "guide.lava": "이제 용암이 올라오기 시작해요! 계속 쌓고 계속 오르세요.",
+  "guide.caught": "아슬아슬했어요! 드론 화면에서 작업자 줄 위로 떨어진 자재는 머리 위로 떨어진 거예요. 안내 중에는 크레인이 붙잡아 주지만, 안내가 끝나면 게임 오버예요.",
   "guide.overHead": "드론 카메라에는 앞뒤 거리가 안 보여요. 평면상에서는 멀리 내려도, 화면에서는 머리 위예요!",
   "guide.edge": "화면 끝으로 계속 걸어가면 탑의 옆 면으로 돌아가요.",
   "guide.tipArrow": "여기에 놓으면 화살표 쪽으로 기울어요. 받침 위에 무게중심이 오게 놓으면 수평으로 서요.",
@@ -488,6 +489,7 @@ const en = {
   "guide.climb": "Watching the drone camera, walk with A / D and jump with W or Space — get up onto the material.",
   "guide.turn": "Now keep walking off the end of the view: the worker rounds the tower's corner onto the next face — when one side is blocked, another may have a way up.",
   "guide.lava": "Here comes the lava! Keep stacking, keep climbing.",
+  "guide.caught": "Close call! Anything dropped onto the worker's line on the drone monitor lands on their head. During the guide the crane catches it — after that, it's game over.",
   "guide.overHead": "The drone camera can't see near and far. However far off you drop it in the plan, on the monitor it's right over the worker's head!",
   "guide.edge": "Keep walking off the end of the view and the tower turns to its next face.",
   "guide.tipArrow": "Dropped here it would tip the way the arrow points. Keep its middle over what holds it up and it stays level.",
@@ -578,9 +580,19 @@ const en = {
 
 const DICT = { ko, en };
 
-// A build for one audience speaks one language: the itch.io copy (`vite build --mode itch`) is
-// English only, with no switch. Every other build lets the player choose.
-const ONLY = import.meta.env.MODE === "itch" ? "en" : null;
+// A copy for one audience speaks one language, with no switch: the itch.io build
+// (`vite build --mode itch`), or any page opened with `?lang=en` / `?lang=ko` — which is how the
+// itch.io page embeds the live site (see itch/index.html). Otherwise the player chooses.
+function onlyLang() {
+  if (import.meta.env.MODE === "itch") return "en";
+  try {
+    const asked = new URLSearchParams(globalThis.location?.search ?? "").get("lang");
+    return LANGS.includes(asked) ? asked : null;
+  } catch {
+    return null;
+  }
+}
+const ONLY = onlyLang();
 export const canSwitchLang = !ONLY;
 
 function initial() {

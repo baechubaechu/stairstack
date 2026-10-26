@@ -33,12 +33,12 @@ function supporters(g, m) {
   return [...out];
 }
 
-function removeMember(g, m) {
+export function removeMember(g, m) {
   g.world.removeRigidBody(m.body);
   g.members.splice(g.members.indexOf(m), 1);
 }
 
-function effect(g, kind, m) {
+export function effect(g, kind, m) {
   const vs = memberVertices(m);
   const c = vs.reduce((s, v) => [s[0] + v[0] / vs.length, s[1] + v[1] / vs.length, s[2] + v[2] / vs.length], [0, 0, 0]);
   g.state.effectSeq = (g.state.effectSeq ?? 0) + 1;

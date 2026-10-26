@@ -8,7 +8,7 @@
 import { BLOCKED_SECONDS, CHAR_STEP, COMPASS, FACES, LAVA_START, MEMBER_BY_ID, PHYS_STEP, QUEUE_AHEAD, SEQUENCE } from "./constants";
 import { aimOverHead, charStep, createCharacter, headStrike, respawn } from "./climber";
 import { forecastTip, settle } from "./tipping";
-import { applyLoads } from "./loads";
+import { applyLoads, effect, removeMember } from "./loads";
 import { descend, release, spawnActive } from "./drop";
 import { seedFloor, stepFloors } from "./floors";
 import { advanceRun, buryDeep, petrify, reachHeight, resetRun } from "./survival";
@@ -52,6 +52,8 @@ function createState() {
     floors: 0, // floor slabs stood on this run
     turns: 0, // face turns committed this run (refused ones don't count)
     landings: [], // members that landed this step, for loads.js to judge
+    headShield: false, // while on, a member coming down on the worker is caught (the guide)
+    caught: 0, // members caught that way this run
     effects: [], // glass shattered and bundles burst lately, for the views to draw
   };
 }
@@ -182,6 +184,15 @@ export function createEngine(RAPIER, input) {
       // Judged on the frame it happens, so the world can freeze with the fatal
       // member exactly where it struck.
       struck = headStrike(g);
+      // While the head is shielded (the first-run guide), the crane catches a member coming down
+      // on the worker at the last moment and swings it away: the run goes on, and the guide says
+      // why it was close.
+      if (struck && state.headShield) {
+        effect(g, "caught", struck);
+        removeMember(g, struck);
+        state.caught += 1;
+        struck = null;
+      }
       if (struck) break;
     }
     if (state.physAcc > PHYS_STEP) state.physAcc = 0;
@@ -233,6 +244,7 @@ export function createEngine(RAPIER, input) {
   function stats() {
     const i = state.dropped % SEQUENCE.length;
     return {
+      caught: state.caught,
       x: character.x,
       top: towerTop(g),
       members: g.members.filter((m) => !m.floor).length,
@@ -320,6 +332,11 @@ export function createEngine(RAPIER, input) {
     },
     // Whether the member in play, dropped where it is aimed, would come down on the climber.
     aimOverHead: () => aimOverHead(g),
+    // Shield the worker's head (true) or not: while shielded, a member that would come down on
+    // them is caught and taken away instead of ending the run (see step).
+    shieldHead(on) {
+      state.headShield = Boolean(on);
+    },
     holdAutoDrop(on) {
       state.autoDropHeld = Boolean(on);
     },

@@ -45,9 +45,9 @@ function cropToWindow(canvas) {
   out.getContext("2d").drawImage(canvas, x, y, w, h, 0, 0, w, h);
   return out.toDataURL("image/jpeg", 0.85);
 }
-const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, timeScore: 0, heightScore: 0, best: 0, time: 0, lava: LAVA_START, dropped: 0, turns: 0, floors: 0, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "plywood", nextIds: ["glass", "bricks", "pipes"] };
+const INITIAL = { x: SPAWN.x, top: 0, members: 0, yaw: 0, score: 0, timeScore: 0, heightScore: 0, best: 0, time: 0, lava: LAVA_START, dropped: 0, turns: 0, floors: 0, caught: 0, cause: null, over: false, paused: false, mode: "menu", face: "front", faceLabel: "FRONT", faceSide: "SOUTH", nowId: "plywood", nextIds: ["glass", "bricks", "pipes"] };
 const snap = (s) =>
-  `${s.score}|${s.time.toFixed(1)}|${s.elapsed.toFixed(1)}|${s.lava.toFixed(2)}|${s.members}|${s.top.toFixed(1)}|${s.x.toFixed(2)}|${s.yaw.toFixed(3)}|${s.cause}|${s.mode}|${s.paused}|${s.face}|${s.nowId}|${s.nextIds.join(",")}`;
+  `${s.score}|${s.time.toFixed(1)}|${s.elapsed.toFixed(1)}|${s.lava.toFixed(2)}|${s.members}|${s.top.toFixed(1)}|${s.x.toFixed(2)}|${s.yaw.toFixed(3)}|${s.cause}|${s.mode}|${s.paused}|${s.face}|${s.nowId}|${s.nextIds.join(",")}|${s.caught}`;
 
 // Which action a key event means. Judged by the physical key code first, because a
 // non-Latin input method (e.g. the Korean IME) reports e.key as a composed character
@@ -439,7 +439,7 @@ export default function Game() {
           <CabWindow glow={guide.target === "plan"}>
             <PlanView engineRef={engineRef} onDrop={push} />
             {guide.target === "plan" ? <GuideBubble guide={guide} /> : null}
-            <AimWarning engineRef={engineRef} active={Boolean(guide.id) && guide.index >= 0} />
+            <AimWarning engineRef={engineRef} active={Boolean(guide.id) && guide.index >= 0} caught={stats.caught} />
             <BossSubtitle />
             {engineState !== "ready" ? (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-card/80">

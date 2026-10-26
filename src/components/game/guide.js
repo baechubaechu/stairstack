@@ -82,6 +82,8 @@ export function useGuide(engineRef, stats) {
     if (eng && stats.mode === "play") {
       eng.holdLava(HELD.has(step));
       eng.holdAutoDrop(step === "drop");
+      // while the steps are on, a drop onto the worker is caught instead of ending the run
+      eng.shieldHead(HELD.has(step));
     }
   }, [engineRef, step, stats.mode, stats.elapsed]);
 
@@ -109,6 +111,13 @@ export function useGuide(engineRef, stats) {
       finishSteps("done");
     }
   }, [live, step, stats.manualDrops, stats.turns, stats.elapsed, stats.time, engineRef, finishSteps]);
+
+  // Count the drops the shield caught, so we can see how often new players aim onto the worker.
+  const caughtBefore = useRef(0);
+  useEffect(() => {
+    if (stats.caught > caughtBefore.current) track("guide", { step, event: "caught", n: stats.caught });
+    caughtBefore.current = stats.caught;
+  }, [stats.caught, step]);
 
   // The tips, once the steps are behind them: each the first time it applies, for a few seconds.
   useEffect(() => {
@@ -165,6 +174,7 @@ export function useGuide(engineRef, stats) {
     setStep(next);
     engineRef.current?.holdLava(next === "drop");
     engineRef.current?.holdAutoDrop(next === "drop");
+    engineRef.current?.shieldHead(next === "drop");
   }, [engineRef]);
 
   const current = step ?? tip;

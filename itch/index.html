@@ -1,0 +1,46 @@
+<!doctype html>
+<!--
+  The itch.io page's game: not a copy of the game, but the live site framed whole, so every
+  deploy to main reaches itch.io too. `?lang=en` makes it English only (no language switch, see
+  src/lib/i18n.js) and `utm_source=itch` tells the beta data where the player came from.
+  Upload this one file to itch.io as the HTML5 game ("This file will be played in the browser").
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>STAIRSTACK</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #1c2228;
+      }
+      iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe
+      id="game"
+      src="https://stairstack.vercel.app/?lang=en&utm_source=itch"
+      title="STAIRSTACK"
+      allow="autoplay; fullscreen"
+      allowfullscreen
+    ></iframe>
+    <script>
+      // Keys go to whatever has focus: hand it to the game as soon as the page opens, and again
+      // whenever the player clicks back into the frame's surroundings.
+      const game = document.getElementById("game");
+      const focus = () => game.focus();
+      game.addEventListener("load", focus);
+      window.addEventListener("click", focus);
+    </script>
+  </body>
+</html>

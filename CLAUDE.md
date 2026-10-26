@@ -46,7 +46,9 @@ slides the line one place right), `CabConsole.jsx` (the control desk: a stick co
 instrument panel — score, height vs lava, brake dial — between them). The story and its wording live in `docs/story-ko.md`.
 `guide.js` (`useGuide`) + `GuideBubble.jsx`: the first-run guide — steps drop → climb → lava warning over the
 view each is about (the screen's `glow`), the lava held (`engine.holdLava`) until the first two are done, then
-one-time tips (edge turn, tip arrow, floor slab). Remembered in localStorage; the pause menu restarts it.
+one-time tips (edge turn, tip arrow, floor slab, each special material). While the steps run the worker's head is
+shielded (`engine.shieldHead`): a drop onto them is caught and explained instead of ending the run. Remembered in
+localStorage; the pause menu restarts it.
 `src/components/game/art/` — decoration only, never read by the engine: `materials.js` (per-type member
 textures, top-lit shading, contact shadows), `scene.js` (dusk sky, foundation section, lava surface/glow/
 embers, plan-view lava, the erupting volcano and a far crane), `climber.js` (the hard-hat figure, its poses,
@@ -80,6 +82,10 @@ randomness (embers, dust) is fine there; the engine itself must stay determinist
   Materials also carry the game's rules: `weight` (heavy ones fall faster), `fragile` (glass breaks
   under a heavy landing), `spreadsTo` (a pipe bundle bursts open), `slippery`, `steady` (never tips).
   `loads.js` applies landings after each physics step; `state.effects` lists shatters for the views.
+- itch.io: upload `itch/index.html` (one file) as the HTML5 game. It frames the live Vercel site with
+  `?lang=en&utm_source=itch`, so every deploy reaches itch.io; `?lang=en|ko` makes any page one language with no
+  switch. `npm run build:itch` (a standalone English copy in `dist-itch`) is the offline fallback — zip it with
+  forward-slash paths (Windows' own zip writes backslashes, which itch.io can't unpack).
 - `window.__perf` (dev only) holds the smoothed step / draw cost of a frame in ms.
 
 ## Supabase (run logs + leaderboard)

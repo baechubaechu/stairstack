@@ -121,3 +121,36 @@ describe("standing on glass", () => {
     expect(onGlass).toBeGreaterThan(onDeck * 2);
   });
 });
+
+describe("the guide's shield over the worker's head", () => {
+  // Drop a member straight onto the worker standing on the ground.
+  const dropOnHead = () => {
+    const c = engine.character;
+    c.x = 0;
+    c.y = c.hh + 0.01;
+    c.vx = 0;
+    c.vy = 0;
+    addMember(g, MEMBER_BY_ID.bricks, 0, 4, 0, { x: 0, y: 0, z: 0 });
+    for (let i = 0; i < 120 && engine.mode === "play"; i++) {
+      engine.preview.x = 5.25;
+      engine.preview.z = 5.25;
+      engine.step(DT);
+    }
+  };
+
+  it("catches a member coming down on the worker while it is on", () => {
+    engine.shieldHead(true);
+    dropOnHead();
+    expect(engine.mode).toBe("play");
+    expect(engine.stats().caught).toBe(1);
+    expect(ids()).not.toContain("bricks");
+    expect(engine.effects.some((e) => e.kind === "caught")).toBe(true);
+  });
+
+  it("ends the run as before once it is off", () => {
+    engine.shieldHead(false);
+    dropOnHead();
+    expect(engine.mode).toBe("over");
+    expect(engine.stats().cause).toBe("head");
+  });
+});
