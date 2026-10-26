@@ -10,6 +10,8 @@ npm-debug.log*
 node_modules
 *.local
 dist
+dist-itch
+*.zip
 
 # editor
 .vscode/*

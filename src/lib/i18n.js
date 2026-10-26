@@ -578,7 +578,13 @@ const en = {
 
 const DICT = { ko, en };
 
+// A build for one audience speaks one language: the itch.io copy (`vite build --mode itch`) is
+// English only, with no switch. Every other build lets the player choose.
+const ONLY = import.meta.env.MODE === "itch" ? "en" : null;
+export const canSwitchLang = !ONLY;
+
 function initial() {
+  if (ONLY) return ONLY;
   try {
     const saved = localStorage.getItem(LANG_KEY);
     if (LANGS.includes(saved)) return saved;
@@ -591,13 +597,14 @@ function initial() {
 
 let lang = initial();
 const listeners = new Set();
+if (ONLY && typeof document !== "undefined") document.documentElement.lang = ONLY;
 
 export function getLang() {
   return lang;
 }
 
 export function setLang(next) {
-  if (!LANGS.includes(next) || next === lang) return;
+  if (!canSwitchLang || !LANGS.includes(next) || next === lang) return;
   lang = next;
   try {
     localStorage.setItem(LANG_KEY, next);

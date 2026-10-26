@@ -5,7 +5,7 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["node_modules", "dist", "src/components/ui/**"],
+    ignores: ["node_modules", "dist", "dist-itch", "src/components/ui/**"],
   },
   pluginJs.configs.recommended,
   {

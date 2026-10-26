@@ -1,4 +1,4 @@
-import { useLang } from "@/lib/i18n";
+import { canSwitchLang, useLang } from "@/lib/i18n";
 import useRestartConfirmation from "./useRestartConfirmation";
 
 // The run's state as a lamp on the ceiling panel: dark at the menu, green while running,
@@ -90,9 +90,11 @@ export default function CabRoof({ stats, engineState, onTogglePause, onRestart, 
           <Switch data-testid="btn-report" onClick={onReport}>
             {t("bar.report")}
           </Switch>
-          <Switch data-testid="btn-lang" onClick={() => setLang(lang === "ko" ? "en" : "ko")}>
-            {t("bar.lang")}
-          </Switch>
+          {canSwitchLang ? (
+            <Switch data-testid="btn-lang" onClick={() => setLang(lang === "ko" ? "en" : "ko")}>
+              {t("bar.lang")}
+            </Switch>
+          ) : null}
           <Screw />
         </div>
       </div>

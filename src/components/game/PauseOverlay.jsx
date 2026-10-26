@@ -1,6 +1,6 @@
 import { useState } from "react";
 import ControlsGuide from "@/components/game/ControlsGuide";
-import { LANGS, useLang } from "@/lib/i18n";
+import { LANGS, canSwitchLang, useLang } from "@/lib/i18n";
 import useRestartConfirmation from "./useRestartConfirmation";
 
 // A push button on the cab's panel, with its lamp and its name (as on the ceiling panel).
@@ -141,6 +141,7 @@ export default function PauseOverlay({ stats, onResume, onRestart, volume, onVol
                       {muted ? t("pause.unmute") : t("pause.mute")}
                     </button>
                   </div>
+                  {canSwitchLang ? (
                   <div className="mt-3 flex items-center gap-3">
                     <span className="w-12 text-[13px] font-semibold">{t("pause.language")}</span>
                     {LANGS.map((l) => (
@@ -157,6 +158,7 @@ export default function PauseOverlay({ stats, onResume, onRestart, volume, onVol
                       </button>
                     ))}
                   </div>
+                  ) : null}
                 </div>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { playerName } from "@/lib/telemetry";
-import { useLang } from "@/lib/i18n";
+import { canSwitchLang, useLang } from "@/lib/i18n";
 import ControlsGuide from "@/components/game/ControlsGuide";
 
 // One line of the permit: what the field is, and what is filled in.
@@ -54,14 +54,14 @@ export default function StartOverlay({ engineState, onStart, onComic }) {
             >
               {ready ? t("permit.stamp") : t("permit.pending")}
             </span>
-            <button
+            {canSwitchLang ? <button
               type="button"
               data-testid="btn-start-lang"
               className="rounded-[3px] border border-[#2a2f33]/40 px-2.5 py-1 font-mono text-[11px] font-semibold hover:bg-[#2a2f33]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ochre"
               onClick={() => setLang(lang === "ko" ? "en" : "ko")}
             >
               {t("bar.lang")}
-            </button>
+            </button> : null}
           </div>
 
           <h2 data-testid="start-title" className="mt-5 text-balance font-sign text-[30px] leading-[1.15] md:text-[34px]">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useLang } from "@/lib/i18n";
+import { canSwitchLang, useLang } from "@/lib/i18n";
 
 // A phone or tablet: nothing to aim with and no keys to climb with. Most visitors from a social
 // post arrive this way, so they get told plainly, with the link ready to send to a computer.
@@ -44,13 +44,15 @@ export default function MobileGate({ onDismiss }) {
           <button type="button" className="font-mono text-[11px] text-muted-foreground underline" onClick={onDismiss}>
             {t("mobile.anyway")}
           </button>
-          <button
-            type="button"
-            className="font-mono text-[11px] text-muted-foreground underline"
-            onClick={() => setLang(lang === "ko" ? "en" : "ko")}
-          >
-            {t("bar.lang")}
-          </button>
+          {canSwitchLang ? (
+            <button
+              type="button"
+              className="font-mono text-[11px] text-muted-foreground underline"
+              onClick={() => setLang(lang === "ko" ? "en" : "ko")}
+            >
+              {t("bar.lang")}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>
